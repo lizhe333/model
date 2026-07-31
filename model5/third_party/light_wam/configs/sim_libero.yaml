@@ -1,0 +1,67 @@
+# @package _global_
+
+defaults:
+  - train
+  - override /task: libero_uncond_2cam224_1e-4
+  - _self_
+
+ckpt: null
+gpu_id: 0
+
+model:
+  load_text_encoder: true
+  skip_dit_load_from_pretrain: true
+  action_dit_pretrained_path: null
+
+EVALUATION:
+  task_suite_name: libero_spatial
+  task_id: 0
+  num_trials: 50
+  output_dir: ./evaluate_results/libero/${hydra:runtime.choices.task}/${now:%Y%m%d_%H%M%S}
+  use_training_run_config: true
+  training_config_path: null
+
+  # Runtime behavior
+  env_num: 1
+  num_steps_wait: 30
+  replan_steps: 10
+  binarize_gripper: true
+  visualize_future_video: false
+  print_action_latency: false
+  print_action_latency_sync_cuda: true
+  preencode_prompt_context: true
+  qualitative_capture_interval: 16
+  qualitative_num_tasks: 10
+  qualitative_save_latents: true
+  qualitative_attention_topk_ratio: 0.15
+
+  # Action inference
+  action_horizon: null
+  num_inference_steps: ${eval_num_inference_steps}
+  sigma_shift: null
+  text_cfg_scale: 1.0
+  negative_prompt: ""
+  rand_device: cpu
+  tiled: false
+
+  # Optional external inputs
+  dataset_stats_path: null
+  device: cuda
+
+MULTIRUN:
+  create_only: false
+  task_file: null
+  task_suite_names:
+    - libero_10
+    - libero_goal
+    - libero_spatial
+    - libero_object
+  num_gpus: 8
+  max_tasks_per_gpu: 2
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: .
+  output_subdir: null
