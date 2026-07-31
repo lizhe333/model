@@ -1,0 +1,45 @@
+# Generated Python files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model5 experiment outputs
+model5/runs/
+model5/outputs/
+model5/artifacts/
+model5/**/*.log
+model5/**/*.pt
+model5/**/*.pth
+model5/**/*.safetensors
+
+# Model5 uses only the vendored Light-WAM LIBERO path.  Keep its runtime source,
+# LIBERO configs, training entry point, and LIBERO evaluator; exclude unrelated
+# upstream integrations and generated/reference material.
+model5/third_party/light_wam/assets/
+model5/third_party/light_wam/eval_logs/
+model5/third_party/light_wam/third_party/
+model5/third_party/light_wam/experiments/real_robot/
+model5/third_party/light_wam/experiments/robotwin/
+model5/third_party/light_wam/experiments/libero/qualitative_*.py
+model5/third_party/light_wam/configs/data/real_robot_hdf5.yaml
+model5/third_party/light_wam/configs/data/robotwin.yaml
+model5/third_party/light_wam/configs/sim_robotwin.yaml
+model5/third_party/light_wam/configs/task/real_robot_hdf5_3cam_384_1e-4.yaml
+model5/third_party/light_wam/configs/task/robotwin_uncond_3cam_384_1e-4.yaml
+model5/third_party/light_wam/scripts/eval_libero.sh
+model5/third_party/light_wam/scripts/eval_robotwin.sh
+model5/third_party/light_wam/scripts/libero_env.full.yml
+model5/third_party/light_wam/scripts/precompute.sh
+model5/third_party/light_wam/scripts/precompute_libero.sh
+model5/third_party/light_wam/scripts/precompute_robotwin.sh
+model5/third_party/light_wam/scripts/precompute_text_embeds.py
+model5/third_party/light_wam/scripts/precompute_video_latents.py
+model5/third_party/light_wam/scripts/robotwin_env.full.yml
+model5/third_party/light_wam/scripts/train_libero_10.sh
+model5/third_party/light_wam/scripts/train_libero_core.sh
+model5/third_party/light_wam/scripts/train_libero_goal.sh
+model5/third_party/light_wam/scripts/train_libero_object.sh
+model5/third_party/light_wam/scripts/train_libero_spatial.sh
+model5/third_party/light_wam/scripts/train_robotwin.sh

@@ -12,7 +12,7 @@ model5/
 ├── configs/          # immutable experiment and Hydra manifests
 ├── scripts/          # user-facing launch commands
 ├── third_party/
-│   └── light_wam/    # clean Light-WAM b2785f66 source snapshot
+│   └── light_wam/    # minimal clean Light-WAM b2785f66 LIBERO runtime subset
 ├── config.py         # typed config loading
 ├── contracts.py      # scientific/runtime validation
 ├── runtime.py        # model5 Hydra factory
@@ -20,9 +20,10 @@ model5/
 ```
 
 Model5 has no runtime source dependency on Model3, Model4, or the outer
-`Light-WAM/` checkout. Its infrastructure is a complete copy of
-Model3's clean upstream Light-WAM snapshot at
-`b2785f66e13fd9987e94ae1ecc1c441d5059c9ae`. Large pretrained weights,
+`Light-WAM/` checkout. Its vendored infrastructure is the Model5-required
+LIBERO runtime subset of Model3's clean upstream Light-WAM snapshot at
+`b2785f66e13fd9987e94ae1ecc1c441d5059c9ae`; unrelated RoboTwin and
+real-robot integrations are intentionally excluded. Large pretrained weights,
 datasets, and precomputed caches remain external experiment assets.
 
 ## Architecture

@@ -1,12 +1,15 @@
 # Vendored Light-WAM Baseline
 
-This directory is a complete copy of Model3's clean vendored Light-WAM tree,
-not a copy of the locally modified outer `Light-WAM/` checkout.
+This directory retains the Model5-required LIBERO runtime subset of Model3's
+clean vendored Light-WAM tree, not a copy of the locally modified outer
+`Light-WAM/` checkout. RoboTwin and real-robot integrations, generated caches,
+and reference evaluation outputs are intentionally excluded.
 
 - Upstream repository: `https://github.com/L1ziang/Light-WAM.git`
 - Upstream commit: `b2785f66e13fd9987e94ae1ecc1c441d5059c9ae`
 - Original Model3 copy method: `git archive HEAD`
-- Model5 copy method: complete source copy from `model3/third_party/light_wam/`
+- Model5 copy method: selected LIBERO runtime source copy from
+  `model3/third_party/light_wam/`
 - Model5 copied on: `2026-07-24`
 - Original license: `LICENSE` in this directory
 
