@@ -8,45 +8,58 @@
 
 ## 0. Status and Authority
 
-- 当前状态：**等待用户审核；不自动启动新训练或修改 server project routing**。
-- 本地目录含历史 Model3、Model3 Regression 和 `model3_o2` 代码，但没有可据此确认的
-  最新 server return、checkpoint 身份与正式评测终态。
-- 正式实验载体统一记为 `C*`，只由 G0 的服务器证据冻结。
+- 当前状态：**Model3 O2 主线已获用户批准，进入 G1 执行准备**。
+- 正式 carrier `C*` 已选为 `model3_o2_layer_aware_query_flow`；Long 与 Object 的正式
+  500-episode 结果已进入本地 source mirror。
+- G0 的 carrier-selection 部分已经完成；Long 对 parent 的 `δ=2%` non-inferiority
+  certification 仍等待合同规定的 paired CI。
 - 历史结果只能作为 evidence/diagnostic anchor，不能自动替代新的 matched control。
 
 ## 1. G0 Carrier Freeze
 
-### 1.1 必填证据
+### 1.1 Frozen O2 Carrier Record
 
-| 字段 | 必需内容 |
-|---|---|
-| Repository | 绝对路径、remote、branch、commit SHA、dirty status |
-| Initialization | Wan base、PEFT checkpoint、interface/head initialization |
-| Action carrier | regression / flow / other，参数量与 solver |
-| Action contract | horizon、supervised prefix、normalization、gripper convention |
-| Replanning | executed prefix、cadence、action-solver steps |
-| Data | dataset path、split、windowing、episode grouping |
-| Evaluation | evaluator commit、task set、initial-state IDs、terminal validation |
-| Existing evidence | checkpoint SHA、500-episode result、latency protocol、日志位置 |
+| 字段 | 当前冻结内容 | 状态 |
+|---|---|---|
+| Carrier | `model3_o2_layer_aware_query_flow` | 已选定 |
+| Video backbone | `Wan-AI/Wan2.1-T2V-1.3B`，frozen base + all-layer rank-64 LoRA/adapters | 已记录 |
+| Interface | layers 8/16/24 recurrent `q1/q2/q3` + layer-separable gated residual readout，exact-q3 identity init | 已记录 |
+| Action carrier | 16-layer Action-DiT，flow-matching action objective，solver 10 | 已记录 |
+| Action/replanning | policy horizon 8，executed/replan 8；video/action horizon 32 | 已记录 |
+| Long initialization | strict model-only warm start from Model3 Long 80K，parent SHA `65680089...1d68`；fresh optimizer/scheduler/dataloader/sampler/RNG | 已记录 |
+| Long training | 4×RTX 4090，B16/GA1，global batch 64，BF16，10K O2-local steps | 已记录 |
+| Long evaluation | LIBERO Long，10 tasks × 50 trials，seed 42，H8/R8，solver 10，700-step limit | 已记录 |
+| Selected Long checkpoint | O2 10K，SHA `9653d5c5...8375f`，476/500 (95.2%) | 已验证 |
+| Parent comparison | Model3 Long 80K，478/500 (95.6%)；same 500 task/trial identities | 已验证 |
+| Evidence | [`model3_o2/Long.md`](model3_o2/Long.md)；full artifacts at `runs/I-003/model3_o2/2026-07-31_model3_o2_long_5k_10k_eval500/` | source mirror 已登记 |
 
-### 1.2 Carrier 选择规则
+SHA 在主表中为可读性缩写；执行与验证时必须使用 `model3_o2/Long.md` 和 config 中的完整值。
 
-1. 只比较同一 evaluator 与 action contract 下的正式结果；
-2. 若 direct regression 相对 flow 达到预声明 non-inferiority 且 latency 更低，可选
-   regression carrier；
-3. 若 `model3_o2` 是候选，必须先返回完整 repo/checkpoint/evaluator 证据，不能根据分支名
-   或阶段性指标直接选用；
-4. carrier 冻结后，A0–A3、R0–R3 和 B0–B2 均在同一 `C*` 上重新训练；
-5. G0 必须在查看新结果前冻结 primary suite、cost unit、checkpoint set、training-seed
-   policy 与 non-inferiority margin。
+### 1.2 Open Reproducibility Fields
 
-当前结论：**G0 未完成。**
+以下字段不推翻 O2 主线选择，但必须在首次 A/R server handoff 的 preflight 中补齐：
+
+- server absolute repo path、backend commit SHA 与 dirty status；
+- evaluator commit；
+- action normalization 与 gripper convention 的最终字段；
+- A/R 的 measured cost unit、checkpoint set 与 training-seed policy；
+- O2 Long 与 parent 的逐 task、逐 initial-state paired outcomes，用于合同规定的 CI。
+
+### 1.3 Carrier Decision
+
+1. O2 Object 35K 在 solver 10 达到 492/500，且 O2 Long 10K 达到 476/500；
+2. Long 在相同 500 个 task/trial identities 上接近 parent 的 478/500，支持跨 suite
+   portability，但没有证明 Long improvement；
+3. 因此 `C* = Model3 O2`，Regression 与历史 Model3 退为 reference tracks；
+4. A0–A3、R0–R3 和 B0–B2 必须在统一 O2 carrier、initialization 与 evaluator contract
+   下训练，历史 O2/Model3 数字不能替代新的 matched controls；
+5. Long non-inferiority 是 paper-claim certification subgate，不再阻塞 O2 主线执行。
 
 ## 2. Common Experimental Contract
 
 除声明的 treatment 外，A/R/B/C/D 共享：
 
-- pretrained Video-DiT base 与 `C*` initialization；
+- pretrained Video-DiT base 与 Model3 O2 `C*` initialization；
 - action carrier、action horizon、supervised/executed prefix 与 replanning cadence；
 - 数据 split、windowing、episode grouping、task weighting 与 action normalization；
 - GPU type、precision、software stack、batch contract 与 evaluator；
@@ -204,11 +217,31 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 
 ### 8.2 Non-Inferiority
 
-- 暂定 `δ = 2.0` percentage points；G0 在查看新结果前冻结或收紧，之后不得 post-hoc
-  修改；
+- `δ = 2.0` percentage points 已在 O2 Long 结果前预声明，现对该 comparison 正式冻结，
+  不得 post-hoc 修改；
 - 报告 `Δ = p_candidate - p_reference` 的 95% paired confidence interval；
 - 只有 CI 下界 `> -δ` 才判定 non-inferior；
 - exact McNemar test 可辅助 paired difference/superiority，不替代 non-inferiority。
+
+#### Current O2 Long vs Parent Record
+
+| Quantity | Value |
+|---|---:|
+| O2 Long 10K | 476/500 (95.2%) |
+| Model3 Long 80K parent | 478/500 (95.6%) |
+| Observed paired difference `Δ` | `-0.4 pp` |
+| Both succeed | 459 |
+| O2 only | 17 |
+| Parent only | 19 |
+| Both fail | 5 |
+| Exact two-sided McNemar `p` | `0.8679394004284404` |
+
+McNemar 检验回答 discordant outcomes 是否呈现显著不对称；它不计算 `Δ` 相对 `-δ` 的
+置信下界。因此，当前可以写“未检测到显著差异，且表现出较强 portability”，不能写
+“已通过 `δ=2%` non-inferiority”。正式判定仍需用相同 500 个 episode 的逐 task paired
+outcomes 执行预声明的 task-stratified paired bootstrap；只有 95% CI 下界 `> -2 pp` 才
+通过。当前 source mirror 只有汇总 2×2 表，没有逐 task outcomes，故该子门状态为
+**pending**。
 
 ### 8.3 Confidence and Randomness
 
@@ -245,15 +278,17 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 
 ## 10. Go/No-Go Gates
 
-### G0：Carrier Freeze
+### G0：O2 Carrier Selected / NI Certification Open
 
-- 完成 repo/checkpoint/evaluator/action-contract 核对；
-- 冻结 `C*`、primary suite、cost unit、checkpoint set、seed policy 与 `δ`；
-- 未完成 G0，不启动 A/R/B。
+- `C* = Model3 O2` 已冻结为主线 carrier；
+- Long selected checkpoint 与 Long/Object 正式评测结果已登记；
+- 首次 A/R handoff 补齐 backend/evaluator commits、action normalization、cost unit、
+  checkpoint set 与 seed policy；
+- Long paired CI 是 formal non-inferiority claim 的未完成子门，不阻塞 G1 执行。
 
 ### G1：Supervision and Routing Insight
 
-1. 用短 pilot 排除明显失败的 A variants；
+1. 以 O2 carrier 启动 A/R preflight，用短 pilot 排除明显失败的 A variants；
 2. 对存活 variants 执行 A-Budget 与 A-Mechanism；
 3. 在固定 schedule/initialization 下执行 R0–R3；
 4. 至少用第二 training seed 或第二 suite 确认方向。
@@ -274,14 +309,14 @@ routing 无稳定差异，不扩展新的 gradient mechanism。
 
 ## 11. Execution Approval and Artifacts
 
-在新训练启动前，handoff packet 必须包含：
+用户已于 2026-07-31 批准以 O2 为主线执行。在每次新训练启动前，handoff packet 仍必须
+包含：
 
 - G0 evidence table；
 - 每个 variant 的 config diff 与 tensor/loss/gradient/optimizer 路径；
 - 预算、早停规则、checkpoint set 与 formal evaluation command；
 - 输出目录、artifact naming、日志与逐 episode 结果位置；
-- 明确的 user approval。
+- 本次 O2 主线批准记录，以及任何超出 A/R/B/C/D 合同的新 scope 的单独批准。
 
-当前最近一步是：**冻结 carrier，并让 Matrix A + R 成为可执行、可计费、可证伪的实验
-合同。**
-
+当前最近一步是：**在 O2 carrier 上完成 A/R preflight 并执行 Matrix A + R；同时从
+正式结果目录取回逐 task paired outcomes，补算 Long 的 `δ=2%` paired CI。**

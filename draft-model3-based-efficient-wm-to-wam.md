@@ -5,6 +5,8 @@
 > 当前版本请阅读 [research-proposal.md](research-proposal.md)；实验执行细节见
 > [experiment-contract.md](experiment-contract.md)；文献、历史结果与审计边界见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
+> 本归档正文中的旧 G0 结论已经过时：当前决定以 Model3 O2 为主线载体；Long 的
+> `δ=2%` non-inferiority 仍等待合同规定的 paired CI。
 
 ## 高效 WM-to-WAM 实验 Proposal
 

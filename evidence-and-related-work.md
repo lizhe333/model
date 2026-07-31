@@ -10,10 +10,9 @@
 
 - 本文主线只研究 **in-place adaptation**：部署时仍运行被适配的 Video-DiT 或 video
   generator computation。
-- 历史 Model3、Model3 Regression、Model5 结果是 diagnostic anchors，不是当前 `C*`
-  上的 matched controls。
-- 本地存在 `model3_o2` 等代码，不等于存在权威 server checkpoint、完整评测与当前终态；
-  carrier 只能由 experiment contract 的 G0 冻结。
+- 当前主线 carrier 是 **Model3 O2**。其 Long checkpoint identity 与 Long/Object 正式结果
+  已进入 source mirror；A/R/B 仍需在统一 O2 合同下重训，不能由历史数字代替。
+- 历史 Model3、Model3 Regression 和 Model5 退为 diagnostic/reference tracks。
 - 论文没有公开的字段记为“未报告”，不得根据方法名或结构图推断。
 - 本文不提出 generator-state distillation、独立 current-only student 或 generator-free
   control 新模块。
@@ -28,6 +27,7 @@
 | DeVA | Video2World DiT + Action Expert 均训练 | warmup + joint | multi-layer/multi-timestep transfer；joint future/action process | 支持重容量方案，但不能单独归因 decoupling |
 | VidMan | Stage 2 可更新或冻结 VDT | video pretrain → action-only | layer-wise action adapter；fixed noisy video latents | 支持 staged hypothesis 与 action-gradient 研究 |
 | Efficient-WAM / AHA-WAM | compressed/asynchronous future use | 各自效率机制 | 面向训练或推理成本优化 | 系统效率参考，不直接回答当前 schedule/routing |
+| Model3 O2（active carrier） | frozen Wan base + all-layer rank-64 LoRA/adapters | joint future-video/action flow | recurrent layers 8/16/24 + layer-aware `q1/q2/q3` readout；H8/R8、solver 10 | 当前 A/R/B 的统一实验载体 |
 | Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint `L_video + L_action` | recurrent queries over layers 8/16/24；current Wan once + action solver | 历史 upper anchor；新 carrier 上必须重训 |
 
 跨论文共同缺口不是“Video-DiT 能否做 WAM”，而是：在固定母体、action carrier、数据与
@@ -67,10 +67,12 @@ in-place PEFT treatments 不是同一组可交换变量。
 不设置正式 Matrix E/Gate。未来如做 matched system comparison，应作为独立扩展并重新申请
 实验资源。
 
-## 4. Historical Local Evidence
+## 4. Local Evidence and Carrier Decision
 
 | 结果 | 数值 | 证据边界 |
 |---|---:|---|
+| Model3 O2 Object step 35K, solver 10 | 492/500，98.4% | predeclared set 中 best observed；支持高性能 carrier 选择 |
+| Model3 O2 Long step 10K | 476/500，95.2% | validated selected checkpoint；强 portability，不是 Long improvement |
 | Model3 Long step 80K | 478/500，95.6% | 历史 flow-carrier 正式结果 |
 | Released Light-WAM Long | 461/500，92.2% | 本地发布权重复测 |
 | Model3 Object flow-10 | 440/500，88.0% | 历史固定配置 |
@@ -80,9 +82,28 @@ in-place PEFT treatments 不是同一组可交换变量。
 | Model3 plan-call latency | 232.994 ms | 历史受控测试 |
 | Light-WAM plan-call latency | 70.327 ms | 历史受控测试 |
 
-这些结果说明闭环性能与部署成本之间存在值得研究的张力，但不能替代 `C*` 上重新训练的
-A/R/B controls。特别是 flow 与 regression 来自不同训练路径，其差异不能归因于
-decoder-only treatment。
+O2 的 Object 高表现与 Long 接近 parent 的表现共同支持其成为 `C*`，但不能替代 `C*`
+上重新训练的 A/R/B controls。特别是 flow 与 regression 来自不同训练路径，其差异不能
+归因于 decoder-only treatment。
+
+### 4.1 O2 Long Paired Comparison
+
+O2 Long 10K 与固定 Model3 Long 80K parent 使用相同 500 个 task/trial identities：
+
+| Matched outcome | Episodes |
+|---|---:|
+| Both succeed | 459 |
+| O2 only | 17 |
+| Model3 only | 19 |
+| Both fail | 5 |
+
+观测差为 `Δ = 95.2% - 95.6% = -0.4 pp`，exact two-sided McNemar
+`p=0.8679394004284404`。据此只能说没有检测到显著差异，并且 O2 表现出较强的 Long
+portability；不能说 O2 改进了 Long，也不能说已经通过 `δ=2%` non-inferiority。
+
+合同要求按 task 分层、保持相同 initial-state pair 的 bootstrap CI，并以 95% CI 下界
+`> -2 pp` 为通过条件。当前 mirror 未包含逐 task paired outcomes，因此 formal
+non-inferiority 状态为 **pending**。权威汇总见 [`model3_o2/Long.md`](model3_o2/Long.md)。
 
 ## 5. External Evidence Tension
 
@@ -159,12 +180,12 @@ trainable params / GPU hours / memory / latency：
 - 不把旧 Model3 flow 结果当作新 carrier 的 A1；
 - 不用相同 steps 冒充 compute-matched；
 - 不把 checkpoint 当作独立 seed；
-- 不把“差异不显著”当作 non-inferiority；
+- 不把 McNemar `p>0.05` 或“差异不显著”当作 non-inferiority；
 - 不把一个 B1 候选称为绝对 minimum；
 - 不让 Matrix C 同时改变层数、aggregation、recurrence 与 capacity；
 - 不跳过 PEFT × interface 交互检查；
 - 不在 A/R insight gate 前扩展 C/D；
 - 不无条件跑满所有 80K/150K 实验；
 - 不用 probe、offline loss 或 gradient cosine 代替闭环成功率；
-- 不在用户批准前启动新增训练或修改 server project routing。
-
+- O2 主线虽已获批准，但不在缺少 preflight/复现字段时启动 server run，也不借此扩展合同
+  之外的新方法 scope。

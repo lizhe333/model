@@ -3,6 +3,7 @@
 ## Research Proposal
 
 > 状态：内部研究 Proposal；尚未启动新训练。  
+> 当前执行主线：**Model3 O2**；carrier 已选定，Long non-inferiority 统计子门待 paired CI。
 > 执行约束见 [experiment-contract.md](experiment-contract.md)，文献与历史证据见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
 
@@ -65,9 +66,12 @@ bracket，以及当前 PEFT upper bound。目标不是宣称搜索连续空间�
 
 ## 3. Experimental Design
 
-正式实验先冻结统一载体 `C*`。`C*` 的 backbone、action head、checkpoint、数据、
-action contract 和 evaluator 均由服务器证据确定；历史 Model3、Regression 或
-`model3_o2` 结果不能自动充当 matched control。
+统一载体已经选为 **Model3 O2**。它保持 parent Model3 的 Wan PEFT、future-video loss、
+16-layer Action-DiT、flow action objective 与 H8/R8 部署合同，只将 recurrent
+`q1/q2/q3` trace 改为显式 layer-aware readout。O2 在 Object 上达到 492/500，在 Long
+上达到 476/500；Long parent 为 478/500。该组合支持把 O2 作为高性能、可跨 suite 迁移的
+主线 carrier，但不把 Long 结果写成 improvement，也不把 `p>0.05` 写成已通过
+non-inferiority。A/R/B 的新 controls 均以 O2 架构和冻结后的统一初始化合同重新训练。
 
 ### 3.1 Matrix A：Supervision Schedule
 
@@ -131,7 +135,9 @@ slots。D 只回答额外 temporal canvas 的收益是否覆盖 token、memory �
 2. formal evaluation 为每个 suite 的 10 tasks × 50 trials，并固定 initial states 与
    evaluator；
 3. compact variant 使用 G0 预声明的 `δ = 2.0` percentage points 进行 paired
-   non-inferiority 判断；“差异不显著”不等于 non-inferior；
+   non-inferiority 判断；“差异不显著”不等于 non-inferior。现有 O2 Long 对 parent 的
+   `McNemar p=0.8679394` 只表示没有检测到显著差异；正式通过仍要求 paired 95% CI 下界
+   高于 `-2 pp`；
 4. 所有结论同时报告 success、trainable parameters、accelerator-hours、peak memory 和
    plan-call latency；相同 steps 不视为 compute-matched。
 
@@ -169,13 +175,16 @@ adaptation study；若机制规律与效率边界都不成立，则停止方法�
 ## 6. Execution Roadmap
 
 ```text
-G0: freeze carrier and evaluation contract
-G1: run Matrix A + R and decide whether a mechanism insight exists
+G0: Model3 O2 selected; close the Long paired-CI certification subgate
+G1: execute Matrix A + R on the O2 carrier and test for a mechanism insight
 G2: if G1 succeeds, run Matrix B, then secondary C/D deployment checks
 ```
 
-- G0 未完成，不启动 A/R/B；
+- O2 已成为正式主线，G1 的 A/R preflight 与执行可以开始；
+- Long paired CI 待补不阻塞 carrier 选择，但在完成前不能声称 O2 已通过 `δ=2%`
+  non-inferiority；
 - A/R 没有形成可复现规律时，不扩展新的 gradient mechanism；
 - B 只允许一个条件式 B1.5，不展开无边界的 rank × layer 搜索；
 - C/D 只能在 A/R/B recipe 冻结后执行；
-- 新训练与 server-side handoff 仍需用户明确批准。
+- 用户已批准 O2 主线执行；每次 server launch 仍必须满足
+  [experiment-contract.md](experiment-contract.md) 的 preflight 与 artifact contract。
