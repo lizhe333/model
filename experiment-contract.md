@@ -30,9 +30,13 @@
 | Long evaluation | 10 tasks × 50 trials，seed 42，H8/R8，solver 10，700-step limit | 已记录 |
 | Selected Long checkpoint | O2 10K，SHA `9653d5c5...8375f`，476/500 (95.2%) | 已验证 |
 | Parent comparison | Model3 Long 80K，478/500 (95.6%)；same 500 task/trial identities | 已验证 |
-| Evidence | [`model3_o2/Long.md`](model3_o2/Long.md) | source mirror 已登记 |
+| Spatial initialization | strict model-only warm start from Model3 Spatial 60K，parent SHA `67ccb8f4...1cf9b`；fresh state | 已记录 |
+| Spatial evaluation | 10 tasks × 50 trials，seed 42，H8/R8，solver 10，400-step limit | 已记录 |
+| Selected Spatial checkpoint | O2 10K，SHA `45e01052...415b`，489/500 (97.8%) | 已验证 |
+| Spatial parent comparison | Model3 Spatial 60K，488/500 (97.6%)；parent ledger 已删除，不能 paired test | 历史 aggregate only |
+| Evidence | [`model3_o2/Long.md`](model3_o2/Long.md)，[`model3_o2/Spatial.md`](model3_o2/Spatial.md) | source mirror 已登记 |
 
-SHA 在表中为可读性缩写；执行时必须使用 `model3_o2/Long.md` 和 config 中的完整值。
+SHA 在表中为可读性缩写；执行时必须使用对应结果页和 config 中的完整值。
 
 ### 1.2 Open Preflight Fields
 
@@ -45,9 +49,11 @@ SHA 在表中为可读性缩写；执行时必须使用 `model3_o2/Long.md` 和 
 
 ### 1.3 Carrier Decision
 
-O2 Object 35K 达到 492/500，O2 Long 10K 达到 476/500；Long 在相同 500 个 identities
-上接近 parent 478/500。该证据支持 `C* = Model3 O2` 与跨 suite portability，不支持
-Long improvement。Regression 与历史 Model3 退为 reference tracks。
+O2 Object 35K 达到 492/500，O2 Long 10K 达到 476/500，O2 Spatial 10K 达到
+489/500。Long 在相同 500 个 identities 上接近 parent 478/500；Spatial 与历史 parent
+488/500 的 aggregate 差为 +1 success，但 parent ledger 已删除。该证据支持
+`C* = Model3 O2` 与跨 suite portability，不支持 Long 或 Spatial improvement。
+Regression 与历史 Model3 退为 reference tracks。
 
 ## 2. Common Contract and Primary Estimands
 

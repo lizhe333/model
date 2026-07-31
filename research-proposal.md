@@ -14,9 +14,10 @@
 adaptation capacity，以及 video/action objective。跨论文结果因此无法回答：一个强 WAM
 究竟依赖哪些 temporal tokens、哪些深度的控制信息，以及哪些层真正需要被适配。
 
-本文固定 **Model3 O2** 作为强 carrier。O2 在 Object 上达到 492/500，在 Long 上达到
-476/500；Long parent 为 478/500。固定 carrier 后，研究不再优先搜索 supervision schedule，
-而是沿着 action information path 逐级缩小系统：
+本文固定 **Model3 O2** 作为强 carrier。O2 在 Object、Long、Spatial 上分别达到
+492/500、476/500、489/500；Long parent 为 478/500，历史 Spatial parent 为
+488/500。固定 carrier 后，研究不再优先搜索 supervision schedule，而是沿着 action
+information path 逐级缩小系统：
 
 ```text
 temporal input
@@ -76,7 +77,9 @@ action-only，以及 action gradient 是否进入 selected PEFT。如果 sanity 
 O2 保持 parent Model3 的 Wan PEFT、future-video loss、16-layer Action-DiT、flow action
 objective 与 H8/R8 部署合同，只将 recurrent `q1/q2/q3` trace 改为显式 layer-aware
 readout。Long 的 `McNemar p=0.8679394` 表示未检测到与 parent 的显著差异，但不等于已
-通过 `δ=2%` non-inferiority；正式 claim 仍等待 paired CI。
+通过 `δ=2%` non-inferiority；正式 claim 仍等待 paired CI。Spatial 比历史 parent 多 1 次
+成功，但 parent ledger 已删除，所以该差异只能描述为保持 parent-level performance，不能
+写成 superiority。
 
 ### 3.2 Matrix D：Temporal Canvas
 

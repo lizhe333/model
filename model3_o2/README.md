@@ -36,6 +36,19 @@ solver-10 evaluations achieved 436/500 at step 5K and 476/500 at step 10K, so
 not improve parent Long performance. See [Long.md](Long.md) for the full result
 contract and evidence qualifications.
 
+## Spatial Performance Run
+
+The registered Spatial treatment model-only warm-started from the retained
+Model3 Spatial step-60K checkpoint and completed a fresh 10K O2-local budget.
+Terminally validated solver-10 evaluations achieved 481/500 at step 5K and
+489/500 at step 10K, so 10K is selected on the predeclared set.
+
+The historical fixed Model3 Spatial-60K result is 488/500. The selected O2
+result is descriptively one success higher, but the parent evaluation ledger
+was deleted and cannot support a paired test. The result therefore preserves
+parent-level Spatial performance and does not establish an improvement. See
+[Spatial.md](Spatial.md) for the full contract and evidence qualifications.
+
 ```bash
 python3 -m model3_o2.launch \
   --config model3_o2/configs/libero_long_fast.json \

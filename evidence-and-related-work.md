@@ -10,7 +10,7 @@
 
 - 本文主线只研究 **in-place adaptation**：部署时仍运行被适配的 Video-DiT 或 video
   generator computation。
-- 当前主线 carrier 是 **Model3 O2**。其 Long checkpoint identity 与 Long/Object 正式结果
+- 当前主线 carrier 是 **Model3 O2**。其 checkpoint identity 与 Object/Long/Spatial 正式结果
   已进入 source mirror；当前实验顺序为 D → L → C → B → minimal A/R sanity，所有新
   controls 都必须在统一 O2 合同下执行。
 - 历史 Model3、Model3 Regression 和 Model5 退为 diagnostic/reference tracks。
@@ -74,7 +74,9 @@ in-place PEFT treatments 不是同一组可交换变量。
 |---|---:|---|
 | Model3 O2 Object step 35K, solver 10 | 492/500，98.4% | predeclared set 中 best observed；支持高性能 carrier 选择 |
 | Model3 O2 Long step 10K | 476/500，95.2% | validated selected checkpoint；强 portability，不是 Long improvement |
+| Model3 O2 Spatial step 10K | 489/500，97.8% | validated selected checkpoint；较历史 parent +1 success，不是已证明的 improvement |
 | Model3 Long step 80K | 478/500，95.6% | 历史 flow-carrier 正式结果 |
+| Model3 Spatial step 60K | 488/500，97.6% | 历史 strict pass；eval ledger 已删除，当前不可本地审计 |
 | Released Light-WAM Long | 461/500，92.2% | 本地发布权重复测 |
 | Model3 Object flow-10 | 440/500，88.0% | 历史固定配置 |
 | Model3 Object flow-5 | 467/500，93.4% | post-hoc solver diagnostic |
@@ -83,9 +85,9 @@ in-place PEFT treatments 不是同一组可交换变量。
 | Model3 plan-call latency | 232.994 ms | 历史受控测试 |
 | Light-WAM plan-call latency | 70.327 ms | 历史受控测试 |
 
-O2 的 Object 高表现与 Long 接近 parent 的表现共同支持其成为 `C*`，但不能替代 `C*`
-上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，其差异不能
-归因于 decoder-only treatment。
+O2 的 Object 高表现，以及 Long/Spatial 接近 parent 的表现，共同支持其成为 `C*`，但不能
+替代 `C*` 上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，
+其差异不能归因于 decoder-only treatment。
 
 ### 4.1 O2 Long Paired Comparison
 
@@ -105,6 +107,17 @@ portability；不能说 O2 改进了 Long，也不能说已经通过 `δ=2%` non
 合同要求按 task 分层、保持相同 initial-state pair 的 bootstrap CI，并以 95% CI 下界
 `> -2 pp` 为通过条件。当前 mirror 未包含逐 task paired outcomes，因此 formal
 non-inferiority 状态为 **pending**。权威汇总见 [`model3_o2/Long.md`](model3_o2/Long.md)。
+
+### 4.2 O2 Spatial Historical Comparison
+
+O2 Spatial 的 predeclared 5K/10K checkpoints 分别达到 481/500（96.2%）和
+489/500（97.8%），10K 被选中。固定 Model3 Spatial 60K 历史结果为
+488/500（97.6%），所以观测差仅为 `+0.2 pp`。
+
+Model3 结果曾通过 strict finalization，但成功 eval 目录与 episode ledger 后来被删除；当前
+只能登记为 `recorded_not_locally_auditable`。因此无法重建 paired McNemar 或 stratified
+paired CI，不能把多出的 1 次成功写成 superiority。权威汇总见
+[`model3_o2/Spatial.md`](model3_o2/Spatial.md)。
 
 ## 5. External Evidence Tension
 
