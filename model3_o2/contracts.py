@@ -67,11 +67,35 @@ def validate_contract(config: Model3O2Config, *, check_paths: bool = True) -> di
     )
     _require(architecture.readout_gate_type == "querywise_scalar", "unexpected O2 gate type", errors)
     _require(architecture.readout_identity_init, "O2 readout must initialize as exact q3 identity", errors)
-    _require(base.evaluation.suite == "libero_object", "the initial O2 treatment is Object-only", errors)
+    _require(
+        base.evaluation.suite in {"libero_object", "libero_10"},
+        "O2 supports only the registered Object or Long treatment",
+        errors,
+    )
     _require(base.evaluation.num_inference_steps == 10, "O2 must retain the 10-step flow solver", errors)
 
     _require(initialization.require_model3_warmstart, "O2 requires the pinned Model3 warm start", errors)
-    _require(initialization.model3_checkpoint_step == 20_000, "O2 warm start must be Model3 step 20K", errors)
+    expected_parent_step = 20_000 if base.evaluation.suite == "libero_object" else 80_000
+    _require(
+        initialization.model3_checkpoint_step == expected_parent_step,
+        f"O2 {base.evaluation.suite} warm start must be Model3 step {expected_parent_step}",
+        errors,
+    )
+    if base.evaluation.suite == "libero_10":
+        training = base.training
+        _require(base.data.use_latent_cache, "O2 Long must use the validated latent cache", errors)
+        _require(base.data.latent_cache_dir is not None, "O2 Long latent cache is required", errors)
+        _require(
+            (training.batch_size, training.gradient_accumulation_steps) == (16, 1),
+            "O2 Long must use B16/GA1",
+            errors,
+        )
+        _require(training.num_workers == 8, "O2 Long must use 8 data-loader workers", errors)
+        _require(training.max_steps == 10_000, "O2 Long local budget must be 10K", errors)
+        _require(training.save_every == 5_000, "O2 Long must save at 5K and 10K", errors)
+        _require(training.warmup_steps == 1_000, "O2 Long warmup must be 1K", errors)
+        _require(training.learning_rate == 1e-4, "O2 Long learning rate must be 1e-4", errors)
+        _require(base.evaluation.max_episode_steps == 700, "O2 Long episode limit must be 700", errors)
     sha = initialization.model3_checkpoint_sha256
     _require(len(sha) == 64 and all(c in "0123456789abcdef" for c in sha), "invalid warm-start SHA-256", errors)
 
@@ -85,6 +109,13 @@ def validate_contract(config: Model3O2Config, *, check_paths: bool = True) -> di
     )
     reference_architecture = ArchitectureConfigProxy.to_model3(reference_architecture)
     shared_reference = replace(base, track_id="model3", architecture=reference_architecture)
+    if base.evaluation.suite == "libero_10":
+        # Validate the shared Model3 Long data/architecture/runtime profile while
+        # keeping the O2-local fine-tuning budget at 10K.
+        shared_reference = replace(
+            shared_reference,
+            training=replace(shared_reference.training, max_steps=80_000),
+        )
     shared_result = validate_model3_contract(shared_reference, check_paths=check_paths)
 
     if check_paths:
@@ -109,7 +140,7 @@ def validate_contract(config: Model3O2Config, *, check_paths: bool = True) -> di
             "model3_checkpoint": str(initialization.model3_checkpoint),
         },
         "data": shared_result["data"],
-        "training": shared_result["training"],
+        "training": asdict(base.training),
         "evaluation": shared_result["evaluation"],
     }
 

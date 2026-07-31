@@ -1,4 +1,4 @@
-"""Validated launcher for the Model3 O2 Object treatment."""
+"""Validated launcher for registered Model3 O2 treatments."""
 
 from __future__ import annotations
 
@@ -29,11 +29,12 @@ def build_backend_environment(
     run_id: str,
 ) -> dict[str, str]:
     environment = build_model3_environment(config.base, backend_output, run_id)
+    suite = config.evaluation.suite
     environment.update(
         {
-            "RUN_TAG": "model3_o2_libero_object",
+            "RUN_TAG": f"model3_o2_{suite}",
             "WANDB_PROJECT": "i003-model3-o2",
-            "WANDB_NAME": f"model3_o2_libero_object_{run_id}",
+            "WANDB_NAME": f"model3_o2_{suite}_{run_id}",
             "HYDRA_CONFIG_ROOT": str(config.project_root / "model3_o2/configs/hydra"),
             "MODEL_PACKAGE_LABEL": "model3_o2",
             "MODEL3_O2_WARMSTART_PATH": str(config.initialization.model3_checkpoint),
@@ -66,7 +67,7 @@ def _prepare_run(
         "parent_track": "model3",
         "run_type": "formal_training",
         "dataset": "LIBERO",
-        "suites": ["libero_object"],
+        "suites": [config.evaluation.suite],
         "repo_commit": commit,
         "repo_dirty": bool(dirty),
         "environment_name": config.backend.conda_env,
@@ -122,8 +123,9 @@ def launch(config_path: Path, run_id: str, *, dry_run: bool) -> int:
 
     evidence_dir, _, manifest = _prepare_run(config, config_path, run_id)
     (evidence_dir / "commands.txt").write_text(command_text + "\n", encoding="utf-8")
+    suite_label = "LIBERO Object" if config.evaluation.suite == "libero_object" else "LIBERO Long"
     (evidence_dir / "run_report.md").write_text(
-        "# Model3 O2 Object Training\n\nStatus: active.\n", encoding="utf-8"
+        f"# Model3 O2 {suite_label} Training\n\nStatus: active.\n", encoding="utf-8"
     )
     process_env = os.environ.copy()
     process_env.update(environment)
@@ -142,8 +144,9 @@ def launch(config_path: Path, run_id: str, *, dry_run: bool) -> int:
     )
     manifest["return_code"] = return_code
     _write_json(evidence_dir / "run_manifest.json", manifest)
+    suite_label = "LIBERO Object" if config.evaluation.suite == "libero_object" else "LIBERO Long"
     (evidence_dir / "run_report.md").write_text(
-        "# Model3 O2 Object Training\n\n"
+        f"# Model3 O2 {suite_label} Training\n\n"
         f"Status: {'completed' if return_code == 0 else 'stopped'}.\n\n"
         f"Return code: `{return_code}`\n",
         encoding="utf-8",
