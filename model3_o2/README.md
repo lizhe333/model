@@ -28,11 +28,13 @@ uses the validated cached Long data profile, a fresh optimizer/scheduler, and a
 10K O2-local budget with checkpoints at 5K and 10K. Object optimizer,
 scheduler, and dataloader state are not reused.
 
-The formal run
-`runs/I-003/model3_o2/2026-07-31_model3_o2_long_from_model3_80k_b16_ga1_10k/`
-is active on GPUs 0-3. Strict Model3 Long-80K loading, cache loading, distributed
-startup, and finite optimizer-step losses have passed. Closed-loop Long
-performance is pending the predeclared 5K/10K evaluations.
+The formal run completed its declared 10K budget. Terminally validated
+solver-10 evaluations achieved 436/500 at step 5K and 476/500 at step 10K, so
+10K is selected on the predeclared set. Versus fixed Model3 Long-80K at
+478/500, matched outcomes are 459 both-success, 17 O2-only, 19 Model3-only, and
+5 both-fail (`p=0.8679394004284404`). The selected O2 result preserves but does
+not improve parent Long performance. See [Long.md](Long.md) for the full result
+contract and evidence qualifications.
 
 ```bash
 python3 -m model3_o2.launch \
