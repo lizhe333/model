@@ -1,0 +1,28 @@
+defaults:
+  - lightwam
+  - _self_
+
+_target_: model3.runtime.create_model3_wam
+
+# Model3 has a distinct public policy config. The inherited StateFusion config
+# is explicitly disabled so Hydra cannot silently instantiate the A1 method.
+state_fusion_action_expert_config: null
+
+action_query_policy_config:
+  query_dim: 512
+  num_action_queries: 64
+  query_num_heads: 8
+  query_bridge_depth: 2
+  query_ffn_multiplier: 4
+  query_dropout: 0.0
+  feature_source: adapted
+
+  hidden_dim: 512
+  ffn_dim: 2048
+  num_heads: 8
+  attn_head_dim: 64
+  num_layers: 16
+  freq_dim: 256
+  eps: 1.0e-06
+  action_horizon: 8
+  use_gradient_checkpointing: false

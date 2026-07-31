@@ -1,0 +1,33 @@
+defaults:
+  - lightwam
+  - _self_
+
+_target_: model3_o2.runtime.create_model3_o2_wam
+
+state_fusion_action_expert_config: null
+model3_warmstart_path: ${oc.env:MODEL3_O2_WARMSTART_PATH,""}
+model3_warmstart_sha256: ${oc.env:MODEL3_O2_WARMSTART_SHA256,""}
+model3_warmstart_step: ${oc.env:MODEL3_O2_WARMSTART_STEP,20000}
+
+action_query_policy_config:
+  query_dim: 512
+  num_action_queries: 64
+  query_num_heads: 8
+  query_bridge_depth: 2
+  query_ffn_multiplier: 4
+  query_dropout: 0.0
+  feature_source: adapted
+
+  hidden_dim: 512
+  ffn_dim: 2048
+  num_heads: 8
+  attn_head_dim: 64
+  num_layers: 16
+  freq_dim: 256
+  eps: 1.0e-06
+  action_horizon: 8
+  use_gradient_checkpointing: false
+
+  readout_type: layer_separable_gated_residual
+  readout_gate_type: querywise_scalar
+  readout_identity_init: true

@@ -1,0 +1,127 @@
+"""Hydra factory for Model3 O2 with the original Action-DiT intact."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import torch
+from omegaconf import DictConfig, OmegaConf
+
+from .models import Model3O2WAM
+
+
+def _as_dict(name: str, value: Any, *, required: bool = False) -> dict[str, Any]:
+    if isinstance(value, DictConfig):
+        value = OmegaConf.to_container(value, resolve=True)
+    if value is None:
+        if required:
+            raise ValueError(f"`{name}` is required for model3_o2")
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"`{name}` must resolve to a dict, got {type(value)}")
+    return dict(value)
+
+
+def create_model3_o2_wam(
+    *,
+    model_id: str,
+    tokenizer_model_id: str,
+    video_dit_config,
+    action_query_policy_config,
+    model3_warmstart_path: str,
+    model3_warmstart_sha256: str,
+    model3_warmstart_step: int,
+    video_backbone_type: str = "wan2_2_ti2v",
+    video_backbone_name: str | None = None,
+    video_latent_spatial_downsample_factor: int = 1,
+    apply_video_latent_downsample_to_action_branch: bool = False,
+    tokenizer_max_len: int = 512,
+    load_text_encoder: bool = True,
+    proprio_dim: int | None = None,
+    action_dit_config=None,
+    action_dit_pretrained_path: str | None = None,
+    skip_dit_load_from_pretrain: bool = False,
+    video_scheduler=None,
+    action_scheduler=None,
+    loss=None,
+    wam_adapter=None,
+    state_fusion_action_expert_config=None,
+    mot_checkpoint_mixed_attn: bool = True,
+    redirect_common_files: bool = True,
+    model_dtype: torch.dtype = torch.bfloat16,
+    device: str = "cuda",
+) -> Model3O2WAM:
+    video_dit = _as_dict("video_dit_config", video_dit_config, required=True)
+    action_dit = _as_dict("action_dit_config", action_dit_config)
+    query_policy = _as_dict(
+        "action_query_policy_config", action_query_policy_config, required=True
+    )
+    video_schedule = _as_dict("video_scheduler", video_scheduler)
+    action_schedule = _as_dict("action_scheduler", action_scheduler, required=True)
+    loss_config = _as_dict("loss", loss)
+    adapter_config = _as_dict("wam_adapter", wam_adapter)
+    legacy_state_fusion = _as_dict(
+        "state_fusion_action_expert_config", state_fusion_action_expert_config
+    )
+    if legacy_state_fusion:
+        raise ValueError("Model3 O2 cannot consume a StateFusion action-expert config")
+    if not model3_warmstart_path or not model3_warmstart_sha256:
+        raise ValueError("Model3 O2 requires the pinned Model3 warm start")
+
+    required_action_schedule = {"train_shift", "infer_shift", "num_train_timesteps"}
+    missing_schedule = required_action_schedule - set(action_schedule)
+    if missing_schedule:
+        raise ValueError(f"`action_scheduler` is missing keys: {sorted(missing_schedule)}")
+    temporal_weighting = _as_dict(
+        "loss.action_temporal_weighting",
+        loss_config.get("action_temporal_weighting"),
+    )
+
+    model = Model3O2WAM.from_wan22_pretrained(
+        action_query_policy_config=query_policy,
+        device=device,
+        torch_dtype=model_dtype,
+        model_id=model_id,
+        video_backbone_type=video_backbone_type,
+        video_backbone_name=video_backbone_name,
+        video_latent_spatial_downsample_factor=int(video_latent_spatial_downsample_factor),
+        apply_video_latent_downsample_to_action_branch=bool(
+            apply_video_latent_downsample_to_action_branch
+        ),
+        tokenizer_model_id=tokenizer_model_id,
+        tokenizer_max_len=int(tokenizer_max_len),
+        load_text_encoder=bool(load_text_encoder),
+        proprio_dim=None if proprio_dim is None else int(proprio_dim),
+        redirect_common_files=bool(redirect_common_files),
+        video_dit_config=video_dit,
+        action_dit_config=action_dit,
+        action_dit_pretrained_path=action_dit_pretrained_path,
+        skip_dit_load_from_pretrain=bool(skip_dit_load_from_pretrain),
+        mot_checkpoint_mixed_attn=bool(mot_checkpoint_mixed_attn),
+        video_train_shift=float(video_schedule.get("train_shift", 5.0)),
+        video_infer_shift=float(video_schedule.get("infer_shift", 5.0)),
+        video_num_train_timesteps=int(video_schedule.get("num_train_timesteps", 1000)),
+        action_train_shift=float(action_schedule["train_shift"]),
+        action_infer_shift=float(action_schedule["infer_shift"]),
+        action_num_train_timesteps=int(action_schedule["num_train_timesteps"]),
+        loss_lambda_video=float(loss_config.get("lambda_video", 1.0)),
+        loss_lambda_action=float(loss_config.get("lambda_action", 1.0)),
+        use_first_frame_residual_video_target=bool(
+            loss_config.get("use_first_frame_residual_video_target", False)
+        ),
+        action_temporal_weighting_enabled=bool(temporal_weighting.get("enabled", False)),
+        action_temporal_weighting_num_prefix_steps=temporal_weighting.get("num_prefix_steps"),
+        action_temporal_weighting_prefix_weight=float(
+            temporal_weighting.get("prefix_weight", 1.0)
+        ),
+        action_temporal_weighting_tail_weight=float(
+            temporal_weighting.get("tail_weight", 1.0)
+        ),
+        wam_adapter=adapter_config,
+    )
+    model.load_model3_warmstart(
+        model3_warmstart_path,
+        expected_sha256=model3_warmstart_sha256,
+        expected_step=int(model3_warmstart_step),
+    )
+    return model

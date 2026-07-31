@@ -1,0 +1,23 @@
+defaults:
+  - lightwam
+  - _self_
+
+_target_: model3_regression.runtime.create_model3_regression_wam
+
+state_fusion_action_expert_config: null
+
+action_query_policy_config:
+  query_dim: 512
+  num_action_queries: 64
+  query_num_heads: 8
+  query_bridge_depth: 2
+  query_ffn_multiplier: 4
+  query_dropout: 0.0
+  feature_source: adapted
+
+  regression_hidden_dim: 512
+  regression_num_heads: 8
+  regression_num_layers: 2
+  regression_ffn_multiplier: 4
+  regression_dropout: 0.0
+  action_horizon: 8
