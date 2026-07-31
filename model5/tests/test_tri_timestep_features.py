@@ -5,6 +5,9 @@ import pytest
 import torch.nn.functional as F
 
 from model5.models import Model5WAM, VLAQueryDiTActionExpert
+from model5.third_party.light_wam.src.lightwam.models.wan22.wan_video_dit import (
+    WanVideoDiT,
+)
 
 
 def _tiny_policy() -> VLAQueryDiTActionExpert:
@@ -27,7 +30,10 @@ def _tiny_policy() -> VLAQueryDiTActionExpert:
     )
 
 
-def _minimal_feature_model(scope: str = "current_plus_noisy_future") -> Model5WAM:
+def _minimal_feature_model(
+    scope: str = "current_plus_noisy_future",
+    future_slots: int = 1,
+) -> Model5WAM:
     model = Model5WAM.__new__(Model5WAM)
     torch.nn.Module.__init__(model)
     model.device = torch.device("cpu")
@@ -35,7 +41,7 @@ def _minimal_feature_model(scope: str = "current_plus_noisy_future") -> Model5WA
     model.video_latent_spatial_downsample_factor = 2
     model.action_feature_temporal_scope = scope
     model.action_feature_fixed_future_timestep = 1000
-    model.action_feature_num_future_latent_slots = 8
+    model.action_feature_num_future_latent_slots = future_slots
     model.action_feature_spatial_downsample_factor = 1
     model._last_action_feature_diagnostics = {}
     model.enable_timing_breakdown = False
@@ -45,7 +51,7 @@ def _minimal_feature_model(scope: str = "current_plus_noisy_future") -> Model5WA
     return model
 
 
-def test_treatment_builds_clean_current_plus_eight_seeded_future_slots() -> None:
+def test_treatment_builds_clean_current_plus_one_seeded_future_slot() -> None:
     model = _minimal_feature_model()
     current = torch.arange(2 * 4 * 1 * 8 * 12, dtype=torch.float32).reshape(
         2, 4, 1, 8, 12
@@ -62,14 +68,28 @@ def test_treatment_builds_clean_current_plus_eight_seeded_future_slots() -> None
         noise_device="cpu",
     )
 
-    assert first.shape == (2, 4, 9, 8, 12)
+    assert first.shape == (2, 4, 2, 8, 12)
     assert torch.equal(first[:, :, :1], current)
     assert torch.equal(first, second)
     assert torch.equal(timestep, torch.tensor([1000.0, 1000.0]))
     assert torch.equal(
         slot_timesteps[0],
-        torch.tensor([0.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]),
+        torch.tensor([0.0, 1000.0]),
     )
+
+
+def test_treatment_slot_count_is_configurable() -> None:
+    model = _minimal_feature_model(future_slots=5)
+    current = torch.randn(1, 4, 1, 8, 12)
+
+    feature_latents, _, slot_timesteps = model._build_action_feature_latents(
+        observation_latents=current,
+        generator=torch.Generator(device="cpu").manual_seed(9),
+        noise_device="cpu",
+    )
+
+    assert feature_latents.shape == (1, 4, 6, 8, 12)
+    assert slot_timesteps.tolist() == [[0.0] + [1000.0] * 5]
 
 
 def test_current_only_keeps_the_model3_high_resolution_current_anchor() -> None:
@@ -98,10 +118,10 @@ def test_low_resolution_efficiency_profile_downsamples_current_and_future_slots(
     )
 
     expected_current = F.avg_pool3d(current, kernel_size=(1, 2, 2), stride=(1, 2, 2))
-    assert feature_latents.shape == (1, 4, 9, 4, 6)
+    assert feature_latents.shape == (1, 4, 2, 4, 6)
     assert torch.equal(feature_latents[:, :, :1], expected_current)
     assert timestep.tolist() == [1000.0]
-    assert slot_timesteps.tolist() == [[0.0] + [1000.0] * 8]
+    assert slot_timesteps.tolist() == [[0.0, 1000.0]]
 
 
 def test_layer_state_diagnostics_cover_all_temporal_tokens() -> None:
@@ -111,7 +131,14 @@ def test_layer_state_diagnostics_cover_all_temporal_tokens() -> None:
     def fake_build_video_pre(**kwargs):
         captured["latents"] = kwargs["latents_video"]
         captured["timestep"] = kwargs["timestep_video"]
-        return {"tokens": kwargs["latents_video"]}, None
+        captured["temporal_timestep"] = kwargs["temporal_timestep_video"]
+        return {
+            "tokens": kwargs["latents_video"],
+            "meta": {
+                "temporal_timestep": kwargs["temporal_timestep_video"],
+                "used_explicit_temporal_timestep": True,
+            },
+        }, None
 
     class FakeVideoExpert:
         fuse_vae_embedding_in_latents = True
@@ -125,7 +152,7 @@ def test_layer_state_diagnostics_cover_all_temporal_tokens() -> None:
     model._build_multilayer_action_fusion_inputs = lambda: [
         {
             "layer_idx": layer_idx,
-            "adapted": torch.randn(1, 9 * tokens_per_slot, 8),
+            "adapted": torch.randn(1, 2 * tokens_per_slot, 8),
         }
         for layer_idx in (8, 16, 24)
     ]
@@ -140,9 +167,51 @@ def test_layer_state_diagnostics_cover_all_temporal_tokens() -> None:
     )
     diagnostics = model.get_last_action_feature_diagnostics()
 
-    assert captured["latents"].shape[2] == 9
+    assert captured["latents"].shape[2] == 2
     assert captured["latents"].shape[-2:] == (8, 12)
     assert captured["timestep"].item() == 1000.0
-    assert all(state["adapted"].shape[1] == 63 for state in states)
-    assert diagnostics["slot_timesteps"] == (0, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000)
-    assert diagnostics["hidden_tokens_per_layer"] == (63, 63, 63)
+    assert captured["temporal_timestep"].tolist() == [[0.0, 1000.0]]
+    assert all(state["adapted"].shape[1] == 14 for state in states)
+    assert diagnostics["slot_timesteps"] == (0, 1000)
+    assert diagnostics["explicit_temporal_timestep"] is True
+    assert diagnostics["hidden_tokens_per_layer"] == (14, 14, 14)
+
+
+def test_wan_pre_dit_applies_explicit_per_slot_timesteps_to_token_modulation() -> None:
+    torch.manual_seed(5)
+    dit = WanVideoDiT(
+        hidden_dim=8,
+        in_dim=4,
+        ffn_dim=16,
+        out_dim=4,
+        text_dim=6,
+        freq_dim=8,
+        eps=1e-6,
+        patch_size=(1, 2, 2),
+        num_heads=1,
+        attn_head_dim=8,
+        num_layers=1,
+        has_image_input=False,
+        seperated_timestep=True,
+        require_vae_embedding=False,
+        require_clip_embedding=False,
+        fuse_vae_embedding_in_latents=True,
+    )
+    temporal_timestep = torch.tensor([[0.0, 1000.0]])
+
+    pre = dit.pre_dit(
+        x=torch.randn(1, 4, 2, 4, 4),
+        timestep=torch.tensor([1000.0]),
+        temporal_timestep=temporal_timestep,
+        context=torch.randn(1, 3, 6),
+        context_mask=torch.ones(1, 3, dtype=torch.bool),
+        fuse_vae_embedding_in_latents=True,
+    )
+
+    assert pre["meta"]["used_explicit_temporal_timestep"] is True
+    assert torch.equal(pre["meta"]["temporal_timestep"], temporal_timestep)
+    assert pre["t"].shape == (1, 8, 8)
+    assert pre["t_mod"].shape == (1, 8, 6, 8)
+    assert torch.equal(pre["t"][:, :4], pre["t"][:, :1].expand(-1, 4, -1))
+    assert torch.equal(pre["t"][:, 4:], pre["t"][:, 4:5].expand(-1, 4, -1))
+    assert not torch.equal(pre["t"][:, 0], pre["t"][:, 4])

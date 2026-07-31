@@ -592,6 +592,7 @@ class LightWAM(torch.nn.Module):
         fuse_vae_embedding_in_latents: bool,
         action: Optional[torch.Tensor] = None,
         apply_spatial_downsample: bool = True,
+        temporal_timestep_video: Optional[torch.Tensor] = None,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]]:
         compression_meta = None
         latents_for_backbone = latents_video
@@ -606,6 +607,7 @@ class LightWAM(torch.nn.Module):
             context_mask=context_mask,
             action=action,
             fuse_vae_embedding_in_latents=fuse_vae_embedding_in_latents,
+            temporal_timestep=temporal_timestep_video,
         )
         return video_pre, compression_meta
 

@@ -51,7 +51,7 @@ export TRAIN_VISUALIZATION_ENABLED=false
 
 export ACTION_FEATURE_TEMPORAL_SCOPE=current_plus_noisy_future
 export FIXED_FEATURE_TIMESTEP=1000
-export FUTURE_FEATURE_LATENT_SLOTS=8
+export FUTURE_FEATURE_LATENT_SLOTS="${FUTURE_FEATURE_LATENT_SLOTS:-1}"
 export ACTION_FEATURE_SPATIAL_DOWNSAMPLE_FACTOR=1
 
 exec conda run --no-capture-output -n lightwam-libero-eval \

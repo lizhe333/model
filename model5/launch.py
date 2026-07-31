@@ -72,6 +72,7 @@ def build_backend_environment(config: Model5Config, backend_output: Path, run_id
 def _suite_label(config: Model5Config) -> str:
     return {
         "libero_spatial": "LIBERO Spatial",
+        "libero_object": "LIBERO Object",
         "libero_10": "LIBERO Long",
     }[config.evaluation.suite]
 
@@ -136,6 +137,12 @@ def _prepare_run(config: Model5Config, config_path: Path, run_id: str) -> tuple[
         "expected_model_class": "Model5WAM",
         "expected_action_policy_class": "VLAQueryDiTActionExpert",
         "expected_method_id": "model5_asymmetric_tri_timestep_query_flow_v1",
+        "action_feature_temporal_scope": config.architecture.action_feature_temporal_scope,
+        "future_feature_latent_slots": config.architecture.future_feature_latent_slots,
+        "fixed_feature_timestep": config.architecture.fixed_feature_timestep,
+        "action_feature_spatial_downsample_factor": (
+            config.architecture.action_feature_spatial_downsample_factor
+        ),
         "backend_role": "vendored_clean_light_wam_infrastructure",
         "backend_output": str(backend_output),
         "progress_log": str(backend_output / "logs" / "training.log"),

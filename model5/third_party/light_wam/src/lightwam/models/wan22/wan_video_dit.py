@@ -927,6 +927,7 @@ class WanVideoDiT(torch.nn.Module):
         action: Optional[torch.Tensor] = None,
         fuse_vae_embedding_in_latents: bool = False,
         control_camera_latents_input: Optional[torch.Tensor] = None,
+        temporal_timestep: Optional[torch.Tensor] = None,
     ) -> Dict[str, Any]:
         x, timestep, context_mask = self._validate_forward_inputs(
             x=x,
@@ -949,13 +950,40 @@ class WanVideoDiT(torch.nn.Module):
         if self.seperated_timestep and fuse_vae_embedding_in_latents:
             if not hasattr(self, "patch_size") or len(self.patch_size) < 3:
                 raise ValueError(f"Invalid dit.patch_size: {getattr(self, 'patch_size', None)}")
-            
-            token_timesteps = torch.ones(
-                (batch_size, x.shape[2], tokens_per_frame),
-                dtype=timestep.dtype,
-                device=timestep.device,
-            ) * timestep.view(batch_size, 1, 1)
-            token_timesteps[:, 0, :] = 0
+
+            used_explicit_temporal_timestep = temporal_timestep is not None
+            if temporal_timestep is None:
+                effective_temporal_timestep = timestep.view(batch_size, 1).expand(
+                    batch_size, x.shape[2]
+                ).clone()
+                effective_temporal_timestep[:, 0] = 0
+            else:
+                if temporal_timestep.ndim != 2:
+                    raise ValueError(
+                        "`temporal_timestep` must be [B,T], got shape "
+                        f"{tuple(temporal_timestep.shape)}"
+                    )
+                expected_shape = (batch_size, int(x.shape[2]))
+                if tuple(temporal_timestep.shape) != expected_shape:
+                    raise ValueError(
+                        "`temporal_timestep` must match latent batch/time shape "
+                        f"{expected_shape}, got {tuple(temporal_timestep.shape)}"
+                    )
+                if int(self.patch_size[0]) != 1:
+                    raise ValueError(
+                        "Explicit temporal timesteps currently require temporal "
+                        f"patch size 1, got {self.patch_size[0]}."
+                    )
+                effective_temporal_timestep = temporal_timestep.to(
+                    device=timestep.device,
+                    dtype=timestep.dtype,
+                )
+
+            token_timesteps = effective_temporal_timestep.unsqueeze(-1).expand(
+                batch_size,
+                x.shape[2],
+                tokens_per_frame,
+            )
             token_timesteps = token_timesteps.reshape(batch_size, -1)
             token_t_emb = sinusoidal_embedding_1d(self.freq_dim, token_timesteps.reshape(-1))
             t = self.time_embedding(token_t_emb).reshape(batch_size, -1, self.hidden_dim)
@@ -1028,6 +1056,8 @@ class WanVideoDiT(torch.nn.Module):
                 "grid_size": (f, h, w),
                 "tokens_per_frame": tokens_per_frame,
                 "batch_size": batch_size,
+                "temporal_timestep": effective_temporal_timestep,
+                "used_explicit_temporal_timestep": used_explicit_temporal_timestep,
             },
         }
 
@@ -1084,6 +1114,7 @@ class WanVideoDiT(torch.nn.Module):
         context_mask: Optional[torch.Tensor] = None,
         action: Optional[torch.Tensor] = None,
         fuse_vae_embedding_in_latents: bool = False,
+        temporal_timestep: Optional[torch.Tensor] = None,
     ):
         pre_state = self.pre_dit(
             x=x,
@@ -1092,6 +1123,7 @@ class WanVideoDiT(torch.nn.Module):
             context_mask=context_mask,
             action=action,
             fuse_vae_embedding_in_latents=fuse_vae_embedding_in_latents,
+            temporal_timestep=temporal_timestep,
         )
         x_tokens = self.forward_backbone(pre_state)
         return self.post_dit(x_tokens, pre_state)

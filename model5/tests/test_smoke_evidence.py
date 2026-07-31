@@ -41,7 +41,7 @@ def test_benchmark_records_loss_gradient_feature_and_inference_metrics(tmp_path)
         "optimizer_step_was_skipped": False,
         "loss_video_raw": 0.5,
         "loss_action_raw": 1.0,
-        "feature/latent_slots": 9.0,
+        "feature/latent_slots": 2.0,
         "gradient/query_encoder_has_grad": True,
         "gradient/wan_adapter_has_grad": True,
         "gradient/wan_lora_has_grad": True,

@@ -35,6 +35,28 @@ class Model5WAM(LightWAM):
     }
 
     @classmethod
+    def _build_action_policy(
+        cls,
+        *,
+        video_hidden_dim: int,
+        action_dim: int,
+        num_fusion_layers: int,
+        proprio_dim: Optional[int],
+        action_query_policy_config: dict[str, Any],
+        device: str,
+        torch_dtype: torch.dtype,
+    ) -> VLAQueryDiTActionExpert:
+        """Construct the legacy Model5 policy through an overridable hook."""
+
+        return VLAQueryDiTActionExpert(
+            video_hidden_dim=video_hidden_dim,
+            action_dim=action_dim,
+            num_fusion_layers=num_fusion_layers,
+            proprio_dim=proprio_dim,
+            **dict(action_query_policy_config),
+        ).to(device=device, dtype=torch_dtype)
+
+    @classmethod
     def from_wan22_pretrained(
         cls,
         *,
@@ -93,8 +115,13 @@ class Model5WAM(LightWAM):
                 "Model5 fixes tau_f to the maximum Wan training timestep; "
                 f"expected {video_num_train_timesteps}, got {fixed_future_timestep}."
             )
+        if "num_future_latent_slots" not in action_feature_config:
+            raise ValueError(
+                "Model5 requires explicit "
+                "`action_feature_config.num_future_latent_slots`."
+            )
         num_future_latent_slots = int(
-            action_feature_config.get("num_future_latent_slots", 8)
+            action_feature_config["num_future_latent_slots"]
         )
         if num_future_latent_slots <= 0:
             raise ValueError("`num_future_latent_slots` must be positive.")
@@ -173,17 +200,28 @@ class Model5WAM(LightWAM):
             load_text_encoder=load_text_encoder,
         )
         video_expert = components.dit
+        if not bool(getattr(video_expert, "seperated_timestep", False)):
+            raise ValueError(
+                "Model5 requires Wan separated-timestep conditioning."
+            )
+        if not bool(getattr(video_expert, "fuse_vae_embedding_in_latents", False)):
+            raise ValueError(
+                "Model5 requires fused VAE-latent conditioning for explicit "
+                "temporal timesteps."
+            )
         adapter_layers = tuple(getattr(video_expert, "adapter_layer_indices", ()))
         if not adapter_layers:
             raise ValueError("Model5 requires at least one Wan adapter layer.")
 
-        action_policy = VLAQueryDiTActionExpert(
+        action_policy = cls._build_action_policy(
             video_hidden_dim=int(video_dit_config["hidden_dim"]),
             action_dim=int(action_dit_config["action_dim"]),
             num_fusion_layers=len(adapter_layers),
             proprio_dim=proprio_dim,
-            **dict(action_query_policy_config),
-        ).to(device=device, dtype=torch_dtype)
+            action_query_policy_config=action_query_policy_config,
+            device=device,
+            torch_dtype=torch_dtype,
+        )
         action_expert = DisabledActionExpert(
             action_dim=int(action_dit_config["action_dim"])
         )
@@ -407,7 +445,28 @@ class Model5WAM(LightWAM):
             action=None,
             fuse_vae_embedding_in_latents=fuse_vae_embedding_in_latents,
             apply_spatial_downsample=False,
+            temporal_timestep_video=slot_timesteps,
         )
+        actual_temporal_timestep = video_pre.get("meta", {}).get(
+            "temporal_timestep"
+        )
+        if not isinstance(actual_temporal_timestep, torch.Tensor):
+            raise RuntimeError(
+                "Wan pre_dit did not return the applied temporal timestep tensor."
+            )
+        if not bool(
+            video_pre.get("meta", {}).get(
+                "used_explicit_temporal_timestep",
+                False,
+            )
+        ):
+            raise RuntimeError(
+                "Model5 action features require explicit temporal timesteps."
+            )
+        if not torch.equal(actual_temporal_timestep, slot_timesteps):
+            raise RuntimeError(
+                "Wan applied temporal timesteps differ from the Model5 slot contract."
+            )
         backbone_timing = self._timing_start()
         _ = self.video_expert.forward_backbone(video_pre)
         self._timing_end("action_feature_backbone", backbone_timing)
@@ -423,8 +482,10 @@ class Model5WAM(LightWAM):
             "future_slots": int(feature_latents.shape[2]) - 1,
             "fixed_future_timestep": int(self.action_feature_fixed_future_timestep),
             "slot_timesteps": tuple(
-                int(value) for value in slot_timesteps[0].detach().to("cpu").tolist()
+                int(value)
+                for value in actual_temporal_timestep[0].detach().to("cpu").tolist()
             ),
+            "explicit_temporal_timestep": True,
             "hidden_tokens_per_layer": tuple(hidden_tokens),
         }
         return layer_states
@@ -551,6 +612,9 @@ class Model5WAM(LightWAM):
                 ),
                 "feature/hidden_tokens": float(
                     diagnostics["hidden_tokens_per_layer"][0]
+                ),
+                "feature/explicit_temporal_timestep": float(
+                    diagnostics["explicit_temporal_timestep"]
                 ),
             }
         )
@@ -745,6 +809,11 @@ class Model5WAM(LightWAM):
             "step": step,
             "torch_dtype": str(self.torch_dtype),
         }
+        parent_identity = getattr(self, "model5_parent_identity", None)
+        if parent_identity is not None:
+            if not isinstance(parent_identity, dict):
+                raise RuntimeError("model5_parent_identity must be a dictionary")
+            payload["model5_parent_identity"] = parent_identity
         if self.proprio_encoder is not None:
             payload["proprio_encoder"] = self.proprio_encoder.state_dict()
         if optimizer is not None:
@@ -753,6 +822,9 @@ class Model5WAM(LightWAM):
 
     def load_checkpoint(self, path, optimizer=None):
         payload = torch.load(path, map_location="cpu")
+        expected_parent = getattr(self, "model5_parent_identity", None)
+        if expected_parent is not None and payload.get("model5_parent_identity") != expected_parent:
+            raise ValueError("Model5 continuation checkpoint parent identity mismatch")
         checkpoint_method = payload.get("method_id")
         if checkpoint_method != self.method_id:
             raise ValueError(

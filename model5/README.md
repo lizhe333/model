@@ -12,7 +12,7 @@ model5/
 ├── configs/          # immutable experiment and Hydra manifests
 ├── scripts/          # user-facing launch commands
 ├── third_party/
-│   └── light_wam/    # minimal clean Light-WAM b2785f66 LIBERO runtime subset
+│   └── light_wam/    # clean Light-WAM b2785f66 source snapshot
 ├── config.py         # typed config loading
 ├── contracts.py      # scientific/runtime validation
 ├── runtime.py        # model5 Hydra factory
@@ -20,10 +20,9 @@ model5/
 ```
 
 Model5 has no runtime source dependency on Model3, Model4, or the outer
-`Light-WAM/` checkout. Its vendored infrastructure is the Model5-required
-LIBERO runtime subset of Model3's clean upstream Light-WAM snapshot at
-`b2785f66e13fd9987e94ae1ecc1c441d5059c9ae`; unrelated RoboTwin and
-real-robot integrations are intentionally excluded. Large pretrained weights,
+`Light-WAM/` checkout. Its infrastructure is a complete copy of
+Model3's clean upstream Light-WAM snapshot at
+`b2785f66e13fd9987e94ae1ecc1c441d5059c9ae`. Large pretrained weights,
 datasets, and precomputed caches remain external experiment assets.
 
 ## Architecture
@@ -33,7 +32,7 @@ datasets, and precomputed caches remain external experiment assets.
 - adapters and real hidden states from layers 8, 16, and 24;
 - fixed feature timestep `tau_f=1000`;
 - a high-resolution action-feature latent grid containing one clean current
-  slot and, in the treatment config, eight Gaussian-noise future slots;
+  slot and a configurable positive number of Gaussian-noise future slots;
 - factor-2 downsampling only in the unchanged future-video supervision branch;
 - dual-view 224 x 224 observations;
 - proper future-video flow supervision;
@@ -49,9 +48,21 @@ Expert future latents never enter the action-feature pass. Inference constructs
 the same current-plus-noise feature grid, runs Wan once, freezes the resulting
 query memory, and uses the existing Model3 action-flow sampler.
 
+The action-feature pass sends an explicit temporal timestep tensor shaped
+`[B,T]` into Wan `pre_dit`. For the current Object profile this is `[0,1000]`:
+the clean current slot is conditioned at zero and the Gaussian future slot at
+`tau_f=1000`. Wan expands those temporal values over the corresponding spatial
+tokens before building `t/t_mod`; runtime diagnostics report the tensor returned
+by `pre_dit` and fail closed if explicit separated-timestep conditioning is not
+active.
+
 The default config is the high-resolution treatment
 `current_plus_noisy_future`. The matched high-resolution control is
 `model5/configs/libero_spatial_current_only.json`.
+
+The future-slot count is an explicit experiment/config value and part of the
+strict checkpoint identity. Historical Spatial/Long configs keep eight slots;
+the current Object profile uses one.
 
 ## Validate
 
@@ -99,6 +110,18 @@ The formal Long treatment uses `libero_10`, the complete shared dual-camera
 latent cache, high-resolution current-plus-noisy-future action features, four
 GPUs, B8/GA2, Wan gradient checkpointing, and a 150,000-step budget. It starts
 fresh from the Wan base and does not resume Model3 weights.
+
+## Train Object (1 Noisy Slot)
+
+```bash
+bash model5/scripts/train_object.sh
+```
+
+The formal Object profile uses the complete dual-camera Object cache, GPUs
+0-3, high-resolution current-plus-noisy-future features with exactly one noisy
+future slot, B8/GA2, no Wan gradient checkpointing, and 150,000 optimizer steps.
+It starts fresh from the Wan base; historical eight-slot checkpoints are not
+compatible with this profile, nor is the superseded two-slot Object run.
 
 ## Progress Logs
 

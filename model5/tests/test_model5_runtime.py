@@ -27,7 +27,7 @@ def _factory_kwargs():
         "action_feature_config": {
             "temporal_scope": "current_plus_noisy_future",
             "fixed_future_timestep": 1000,
-            "num_future_latent_slots": 8,
+            "num_future_latent_slots": 1,
             "spatial_downsample_factor": 1,
         },
     }

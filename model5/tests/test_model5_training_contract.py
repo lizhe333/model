@@ -45,10 +45,11 @@ def test_model5_joint_loss_uses_future_flow_and_policy_horizon() -> None:
     model.timing_breakdown_sync_cuda = False
     model._timing_breakdown = {}
     model._last_action_feature_diagnostics = {
-        "latent_slots": 9,
-        "future_slots": 8,
+        "latent_slots": 2,
+        "future_slots": 1,
         "fixed_future_timestep": 1000,
         "hidden_tokens_per_layer": (6, 6, 6),
+        "explicit_temporal_timestep": True,
     }
     model.train_video_scheduler = WanContinuousFlowMatchScheduler(
         num_train_timesteps=1000,
@@ -94,5 +95,6 @@ def test_model5_joint_loss_uses_future_flow_and_policy_horizon() -> None:
     assert metrics["loss_action_raw"] > 0.0
     assert model.action_policy.action_encoder.weight.grad is not None
     assert model.action_policy.query_encoder.action_queries.grad is not None
-    assert metrics["feature/latent_slots"] == 9.0
+    assert metrics["feature/latent_slots"] == 2.0
     assert metrics["feature/fixed_future_timestep"] == 1000.0
+    assert metrics["feature/explicit_temporal_timestep"] == 1.0

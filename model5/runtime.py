@@ -48,6 +48,7 @@ def create_model5_wam(
     redirect_common_files: bool = True,
     model_dtype: torch.dtype = torch.bfloat16,
     device: str = "cuda",
+    _model_class=Model5WAM,
 ) -> Model5WAM:
     """Build Model5WAM on the clean Light-WAM source vendored under model5."""
 
@@ -89,7 +90,7 @@ def create_model5_wam(
         "loss.action_temporal_weighting",
         loss_config.get("action_temporal_weighting"),
     )
-    return Model5WAM.from_wan22_pretrained(
+    return _model_class.from_wan22_pretrained(
         action_query_policy_config=query_policy,
         action_feature_config=feature_config,
         device=device,

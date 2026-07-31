@@ -79,8 +79,8 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
         errors,
     )
     _require(
-        architecture.future_feature_latent_slots == 8,
-        "model5 must configure eight future feature latent slots",
+        architecture.future_feature_latent_slots > 0,
+        "model5 future feature latent slots must be a positive integer",
         errors,
     )
     _require(
@@ -99,8 +99,8 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
     _require(training.weight_decay == 0.01, "AdamW weight decay must be 0.01", errors)
     _require(training.lr_scheduler_type == "cosine", "learning-rate schedule must be cosine", errors)
     _require(
-        evaluation.suite in {"libero_spatial", "libero_10"},
-        "model5 formal suite must be libero_spatial or libero_10",
+        evaluation.suite in {"libero_spatial", "libero_object", "libero_10"},
+        "model5 formal suite must be libero_spatial, libero_object, or libero_10",
         errors,
     )
     _require(evaluation.tasks == 10, "evaluation must cover all 10 suite tasks", errors)
@@ -128,6 +128,47 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
                 "high-resolution Spatial Model5 requires gradient checkpointing",
                 errors,
             )
+    elif evaluation.suite == "libero_object":
+        _require(
+            data.dataset_dir.name == "libero_object_no_noops_lerobot",
+            "Object config must use the no-noops Object dataset",
+            errors,
+        )
+        _require(
+            data.latent_cache_dir.name == "libero_object_2cam224",
+            "Object config must use the registered dual-camera latent cache",
+            errors,
+        )
+        _require(
+            architecture.action_feature_temporal_scope
+            == "current_plus_noisy_future",
+            "formal Object training must use the Model5 temporal treatment",
+            errors,
+        )
+        _require(
+            architecture.future_feature_latent_slots == 1,
+            "the current formal Object profile must use one future feature slot",
+            errors,
+        )
+        _require(
+            architecture.action_feature_spatial_downsample_factor == 1,
+            "formal Object training must preserve high-resolution action features",
+            errors,
+        )
+        _require(
+            (training.batch_size, training.gradient_accumulation_steps) == (8, 2),
+            "Object Model5 profile must be B8/GA2",
+            errors,
+        )
+        _require(
+            not training.gradient_checkpointing,
+            "the selected Object Model5 profile disables gradient checkpointing",
+            errors,
+        )
+        _require(training.max_steps == 150_000, "Object training budget must be 150000 steps", errors)
+        _require(training.save_every == 5_000, "Object checkpoint cadence must be 5000 steps", errors)
+        _require(training.warmup_steps == 1_000, "Object warmup must be 1000 steps", errors)
+        _require(training.learning_rate == 2e-4, "Object learning rate must be 2e-4", errors)
     elif evaluation.suite == "libero_10":
         _require(
             data.dataset_dir.name == "libero_10_no_noops_lerobot",
@@ -173,19 +214,25 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
         ]
         for path in checked_paths:
             _require(path.exists(), f"required path does not exist: {path}", errors)
-        if evaluation.suite == "libero_10" and config.data.latent_cache_dir.exists():
+        if evaluation.suite in {"libero_object", "libero_10"} and config.data.latent_cache_dir.exists():
             _require(
                 (config.data.latent_cache_dir / "index.pt").is_file(),
-                "Long latent cache is missing index.pt",
+                f"{evaluation.suite} latent cache is missing index.pt",
                 errors,
             )
             _require(
                 (config.data.latent_cache_dir / "meta.json").is_file(),
-                "Long latent cache is missing meta.json",
+                f"{evaluation.suite} latent cache is missing meta.json",
                 errors,
             )
             manifests = list((config.data.latent_cache_dir / "manifests").glob("rank*.pt"))
-            _require(len(manifests) == 4, "Long latent cache must retain four rank manifests", errors)
+            expected_manifests = 4 if evaluation.suite == "libero_10" else 2
+            _require(
+                len(manifests) == expected_manifests,
+                f"{evaluation.suite} latent cache must retain "
+                f"{expected_manifests} rank manifests",
+                errors,
+            )
 
     if errors:
         raise ContractError("Model5 contract validation failed:\n- " + "\n- ".join(errors))
