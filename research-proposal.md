@@ -2,189 +2,189 @@
 
 ## Research Proposal
 
-> 状态：内部研究 Proposal；尚未启动新训练。  
-> 当前执行主线：**Model3 O2**；carrier 已选定，Long non-inferiority 统计子门待 paired CI。
+> 当前执行主线：**Model3 O2 → Matrix D → Matrix L → Matrix C → Matrix B → minimal A/R sanity checks**。
+> O2 carrier 已选定；Long non-inferiority 统计子门仍待 paired CI。
 > 执行约束见 [experiment-contract.md](experiment-contract.md)，文献与历史证据见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
 
 ## 1. Problem and Scope
 
-预训练 video diffusion models 为 World-Action Model（WAM）提供了强大的视觉与动态先验。
-现有工作已经证明 Video-DiT 可以通过机器人数据和动作目标转化为有效策略，但这些系统
-通常同时改变四类因素：future-video supervision 的使用阶段、video/action gradients 的
-流向、Video-DiT 的 adaptation capacity，以及 predictive features 暴露给 action policy
-的方式。跨论文性能因此只能证明多种完整系统都可行，不能说明各项改动中哪些真正必要。
+预训练 Video-DiT 已经能够作为 World-Action Model（WAM）的强初始化，但现有系统通常
+同时改变 temporal latent canvas、hidden-state depth、multi-layer aggregation、Video-DiT
+adaptation capacity，以及 video/action objective。跨论文结果因此无法回答：一个强 WAM
+究竟依赖哪些 temporal tokens、哪些深度的控制信息，以及哪些层真正需要被适配。
 
-本文研究受控的 **in-place adaptation**：在线控制时仍保留同一个 Video-DiT，在固定
-pretrained backbone、action carrier、数据与评测协议后，依次隔离 supervision schedule、
-gradient routing 和 PEFT capacity。核心问题是：
+本文固定 **Model3 O2** 作为强 carrier。O2 在 Object 上达到 492/500，在 Long 上达到
+476/500；Long parent 为 478/500。固定 carrier 后，研究不再优先搜索 supervision schedule，
+而是沿着 action information path 逐级缩小系统：
 
-> **When should a Video-WM learn dynamics, and how much of it must be adapted
-> for control?**
+```text
+temporal input
+  -> informative depths
+  -> layer composition
+  -> adapted layers
+  -> minimal objective/routing sanity checks
+```
 
-换言之，我们希望判断 future prediction 应当持续参与控制训练，还是主要承担早期
-dynamics acquisition；随后再寻找保持闭环性能所需的最小已测试适配容量与在线接口成本。
+核心问题是：
 
-本文所称“高效”不是仅减少 trainable parameters。候选方案必须先达到预声明的闭环性能
-标准，再联合比较 trainable parameters、accelerator-hours、peak training memory、在线
-Video-DiT token/forward cost 与 plan-call latency。
+> **Which temporal and depth-wise representation path is actually required
+> for control, and how little of the Video-DiT must be adapted once that path
+> is identified?**
 
-EnFold 属于另一种 fold-out regime：它用 generator computation 监督独立的 current-only
-encoder，并在部署时移除 generator。因此，它定义本文的 novelty boundary，而不是
-in-place 主矩阵中的 matched baseline。
+本文只研究 **in-place adaptation**：部署时仍运行 Video-DiT。EnFold 的 fold-out、
+current-only student 与 generator-free deployment 定义 novelty boundary，不进入主矩阵。
 
-## 2. Core Hypothesis and Research Questions
+“高效”要求候选模型先达到预声明闭环性能，再比较 trainable parameters、
+accelerator-hours、peak memory、在线 token/forward cost 与 plan-call latency。
 
-本文的待验证统一假设是：
+## 2. Research Questions and Priority
 
-> **Acquire dynamics broadly, specialize control sparsely.**
+### RQ-D：动作前向是否需要 temporal canvas？
 
-它不是预设结论。只有当 supervision、routing 和 capacity 的受控结果共同支持时，才能成为
-论文主张。
+首先比较 matched current-only input 与 policy-owned noisy future slots。该实验决定后续
+所有层分析应在什么 temporal input contract 下进行，不能放在接口与 PEFT 搜索之后。
 
-### Primary RQ1：什么时候学习 dynamics，梯度应如何流动？
+### RQ-L：控制相关信息在哪些深度出现？
 
-我们比较 action-only、从头 joint、video warmup 后 action-only，以及 video warmup 后
-joint 四种 schedule；随后固定 objective、initialization 和 PEFT capacity，隔离
-video/action losses 是否更新共享 PEFT。该问题同时回答：
+在冻结 D 结果后，对 O2 已注册的 layers 8/16/24 做 parameter-matched single-depth
+readout。Matrix L 的目标是定位 **tested depths** 中的控制可读性与任务互补性，不根据
+offline probe 直接宣称某层对闭环必要。
 
-- 在相同总训练成本下，哪种 schedule 的 success-cost Pareto 最好；
-- 在固定 action-stage updates 时，future supervision 是否仍有增量价值；
-- control specialization 是否需要 action gradients 进入 Video-DiT PEFT。
+### RQ-C：应该怎样组合这些层？
 
-### Primary RQ2：至少需要多少 Video-DiT adaptation capacity？
+只在 Matrix L 确认有用的深度上比较 best single layer、simple shared aggregation、
+layer-separable composition 与当前 O2 gated residual readout。这样把“读取哪些层”和
+“怎样组合”拆成两个问题。
 
-在 RQ1 冻结的 recipe 上，比较 frozen backbone、一个预声明 compact PEFT、一个条件式
-bracket，以及当前 PEFT upper bound。目标不是宣称搜索连续空间中的绝对 minimum，而是
-确定 **smallest tested viable configuration** 及其性能—成本边界。
+### RQ-B：只适配这些层是否足够？
 
-### Secondary RQ3/RQ4：收益能否通过更便宜的在线路径保留？
+固定 D/L/C recipe 后，比较 frozen WM、仅适配 L-selected blocks、一个条件式邻域 bracket，
+以及 O2 all-layer rank-64 PEFT upper bound。目标是找到 smallest tested viable
+selected-layer adaptation，而不是搜索连续空间中的绝对 minimum。
 
-主线成立后，再检查最低 Video-to-Action interface bandwidth，以及 action forward 是否
-需要 noisy future slots。两者只界定部署成本，不作为独立机制贡献，也不应先于 RQ1/RQ2
-消耗主要实验预算。
+### Minimal A/R：主结论是否依赖 objective 或 gradient route？
+
+A/R 不再是大规模 discovery matrix。最后只运行两个 matched sanity pairs：joint versus
+action-only，以及 action gradient 是否进入 selected PEFT。如果 sanity check 反转主结论，
+则 D/L/C/B claim 必须条件化；否则不扩展完整 schedule/routing grid。
 
 ## 3. Experimental Design
 
-统一载体已经选为 **Model3 O2**。它保持 parent Model3 的 Wan PEFT、future-video loss、
-16-layer Action-DiT、flow action objective 与 H8/R8 部署合同，只将 recurrent
-`q1/q2/q3` trace 改为显式 layer-aware readout。O2 在 Object 上达到 492/500，在 Long
-上达到 476/500；Long parent 为 478/500。该组合支持把 O2 作为高性能、可跨 suite 迁移的
-主线 carrier，但不把 Long 结果写成 improvement，也不把 `p>0.05` 写成已通过
-non-inferiority。A/R/B 的新 controls 均以 O2 架构和冻结后的统一初始化合同重新训练。
+### 3.1 Fixed Carrier：Model3 O2
 
-### 3.1 Matrix A：Supervision Schedule
+O2 保持 parent Model3 的 Wan PEFT、future-video loss、16-layer Action-DiT、flow action
+objective 与 H8/R8 部署合同，只将 recurrent `q1/q2/q3` trace 改为显式 layer-aware
+readout。Long 的 `McNemar p=0.8679394` 表示未检测到与 parent 的显著差异，但不等于已
+通过 `δ=2%` non-inferiority；正式 claim 仍等待 paired CI。
 
-| Variant | Dynamics stage | Action stage | 研究角色 |
-|---|---|---|---|
-| A0 | none | action-only | 无 robot-video supervision 的对照 |
-| A1 | none | joint video/action | 持续 predictive objective |
-| A2 | video warmup | action-only | dynamics acquisition 后控制特化 |
-| A3 | video warmup | joint video/action | warmup 后继续 predictive objective |
+### 3.2 Matrix D：Temporal Canvas
 
-Matrix A 同时报告两个 estimand：
-
-- **Budget-matched**：固定总 accelerator-hour budget，回答给定预算下的最优资源分配；
-- **Action-update-matched**：固定 action-stage updates 并单列 warmup 成本，回答 future
-  supervision 的增量价值。
-
-两种比较不能互相替代：等预算结果不能直接证明 future supervision 的因果收益，固定
-action updates 的结果也不能隐藏额外 warmup 成本。
-
-### 3.2 Matrix R：Gradient Routing
-
-| Variant | Video loss → PEFT | Action loss → PEFT | 研究角色 |
-|---|---:|---:|---|
-| R0 | ✓ | ✓ | shared-gradient joint |
-| R1 | ✓ | ✗ | video 塑造 WM，action 只训练 interface/head |
-| R2 | ✗ | ✓ | action-specific WM adaptation |
-| R3 | ✗ | ✗ | frozen WM readout control |
-
-R0/R1 是 joint objective 下的 matched pair；R2/R3 是 action-only objective 下的
-matched pair。跨 pair 的差异混合了 objective 与 routing，不能单独解释为 gradient effect。
-
-### 3.3 Matrix B：PEFT Capacity
-
-| Variant | Capacity | 角色 |
+| Variant | Action-feature input | 研究角色 |
 |---|---|---|
-| B0 | frozen WM，仅训练 interface/head | lower-cost control |
-| B1 | 预声明 compact PEFT | 首个低成本候选 |
-| B1.5 | 仅当 B1 失败时启用的单个 bracket | 定位边界区间 |
-| B2 | 当前 PEFT upper bound | performance/cost anchor |
+| D1 | clean current latent，matched timestep/position/code path | current-only control |
+| D2 | D1 + policy-owned Gaussian-noise future slots | temporal-canvas treatment |
 
-Compact candidate 只有在相对 B2 的 paired 95% confidence interval 下界高于
-`-δ` 时才判为 non-inferior。B0 或 B1 成功时，只称为 cheapest/smallest tested
-configuration，不使用“绝对最小”表述。
+D1/D2 固定 O2 PEFT、当前 layer-aware interface、action decoder、loss、预算与 solver。
+D2 不读取 expert future information，也不运行 iterative video denoising。只有 D2 的闭环
+收益稳定且覆盖额外 token、memory 和 latency 成本时，后续矩阵才保留 temporal canvas。
 
-### 3.4 Deployment Boundary
+### 3.3 Matrix L：Depth Localization
 
-当 A/R/B recipe 冻结后，Matrix C 先在同一 aggregation contract 下比较单层与多层读取，
-再固定读取层数比较 compact aggregation；随后执行一次 PEFT × interface 的 2×2 检查，
-避免把小 PEFT 与宽接口之间的补偿关系误写成单轴结论。
+| Variant | Read depth | Readout contract |
+|---|---:|---|
+| L8 | layer 8 | matched single-depth readout |
+| L16 | layer 16 | matched single-depth readout |
+| L24 | layer 24 | matched single-depth readout |
+| L-O2 | layers 8/16/24 | registered O2 multi-depth reference |
 
-最后，Matrix D 以 matched code path 比较 current-only 与 policy-owned noisy future
-slots。D 只回答额外 temporal canvas 的收益是否覆盖 token、memory 和 latency 成本，
-不引入 expert future video、action、reward 或 simulator state。
+L8/L16/L24 固定 temporal canvas、PEFT、action head、query 数、hidden width、训练预算与
+参数量，只改变 hidden-state depth。Offline probes 可解释信息类型，但正式 localization
+由 paired closed-loop success 与 per-task complementarity 决定。
+
+### 3.4 Matrix C：Layer Composition
+
+| Variant | 输入 | Aggregation |
+|---|---|---|
+| C0 | L 中的 best single depth | single-depth baseline |
+| C1 | L-selected depths | parameter-matched simple/shared pooling |
+| C2 | L-selected depths | layer-separable compact composition |
+| C3 | L-selected depths | O2-style gated residual readout |
+
+Matrix C 不再改变读取深度集合。若 C0 已对 multi-depth variants non-inferior，则优先单层；
+若 multi-depth 有收益，再判断收益来自层身份保留还是复杂 gated composition。
+
+### 3.5 Matrix B：Selected-Layer Adaptation
+
+| Variant | Video-DiT adaptation | 研究角色 |
+|---|---|---|
+| B0 | frozen WM，只训练 interface/head | no-PEFT control |
+| B1 | 仅适配 L-selected blocks | selected-layer candidate |
+| B1.5 | B1 + 一层预声明相邻 block，仅在 B1 失败时启用 | boundary bracket |
+| B2 | O2 all-layer rank-64 PEFT | performance/cost upper anchor |
+
+B1/B1.5 的 block mapping 必须在查看结果前冻结。B0/B1 只有相对 B2 的 paired 95% CI
+下界高于 `-δ` 时才判为 non-inferior，结论只写 cheapest/smallest tested configuration。
+
+### 3.6 Minimal A/R Sanity Checks
+
+| Pair | 只改变什么 | 目的 |
+|---|---|---|
+| A-S0 vs A-S1 | registered joint objective vs action-only；固定 action updates | 检查 final recipe 是否依赖 video objective |
+| R-S0 vs R-S1 | action loss 是否更新 selected PEFT；interface/head 始终接收 action loss | 检查 selected-layer claim 是否依赖 gradient route |
+
+若 B0 胜出、WM PEFT 全冻结，则 R sanity 记为 not applicable。除非 sanity pair 显著反转
+D/L/C/B 结论，否则不恢复原 A0–A3 或 R0–R3 全矩阵。
 
 ## 4. Evaluation and Decision Rules
 
-主文采用以下四条判定原则：
-
-1. primary endpoint 是 paired closed-loop task success；offline loss、probe 与 gradient
-   statistics 仅作诊断；
-2. formal evaluation 为每个 suite 的 10 tasks × 50 trials，并固定 initial states 与
-   evaluator；
-3. compact variant 使用 G0 预声明的 `δ = 2.0` percentage points 进行 paired
-   non-inferiority 判断；“差异不显著”不等于 non-inferior。现有 O2 Long 对 parent 的
-   `McNemar p=0.8679394` 只表示没有检测到显著差异；正式通过仍要求 paired 95% CI 下界
-   高于 `-2 pp`；
-4. 所有结论同时报告 success、trainable parameters、accelerator-hours、peak memory 和
-   plan-call latency；相同 steps 不视为 compute-matched。
-
-结果对应的论文解释如下：
+1. Primary endpoint 是 paired closed-loop task success；probe、loss 与 gradient statistics
+   只作诊断。
+2. Primary contrasts 按顺序为 D2 vs D1、L single-depth comparisons、C variants、
+   B-selected vs B2；A/R 是 secondary sanity contrasts。
+3. Formal evaluation 为每个 suite 10 tasks × 50 trials，并固定 initial states 与 evaluator。
+4. `δ=2 pp` 的 non-inferiority 必须由 paired 95% CI 判定；McNemar `p>0.05` 不等于
+   non-inferiority。
+5. 所有变体同时报告 success、parameters、accelerator-hours、memory、token cost 与
+   latency；相同 steps 不视为 compute-matched。
 
 | 结果模式 | 可支持的解释 |
 |---|---|
-| staged 优于 action-only/joint | future prediction 主要用于 dynamics acquisition |
-| persistent joint 优于 staged | predictive objective 在 control specialization 中仍有必要 |
-| gradient isolation 优于 shared gradients | representation learning 与 control specialization 存在优化干扰 |
-| compact PEFT/interface 保持性能 | dynamics acquisition 与在线控制所需 capacity 可以解耦 |
+| D1 non-inferior to D2 | current-only input 足够，temporal canvas 可删除 |
+| D2 稳定优于 D1 且覆盖成本 | noisy temporal canvas 对控制有实际价值 |
+| 一个或少数 L depths 保持性能 | 控制信息在 tested depths 中具有局部可读性 |
+| multi-depth C 优于 best single | 深度间信息具有闭环互补性 |
+| B1 non-inferior to B2 | 只适配 control-relevant blocks 足以保持性能 |
+| A/R sanity 反转主结果 | 主结论依赖 objective/routing，必须缩小 claim scope |
 
-若 A/R 没有稳定规律，但 B 显示显著 Pareto 优势，论文降级为 parameter-efficient
-adaptation study；若机制规律与效率边界都不成立，则停止方法扩展并报告 negative study。
-
-## 5. Expected Contributions
+## 5. Expected Contributions and Downgrade Paths
 
 理想结果支持三项贡献：
 
-1. **Controlled fine-tuning study**：在同一 Video-DiT 和 action carrier 上隔离
-   supervision schedule 与 gradient routing；
-2. **Efficient adaptation frontier**：给出闭环性能相对 parameters、training compute、
-   memory 与 latency 的 Pareto，并定位最小已测试可行 PEFT 区间；
-3. **Deployment boundary**：说明保持主收益所需的接口带宽，以及 noisy temporal slots
-   是否必要。
+1. **Temporal requirement**：确认强 WAM 是否需要 noisy future slots；
+2. **Depth-wise control path**：定位 control-readable depths，并隔离 layer selection 与
+   aggregation；
+3. **Localized adaptation frontier**：验证只适配这些深度是否能保持 O2 闭环性能。
 
-如果 staged + sparse specialization 得到共同支持，paper-facing claim 才可写为：
-
-> Future prediction is most useful as a dynamics-acquisition stage rather than
-> a permanently coupled control objective; subsequent action specialization
-> requires only sparse Video-DiT adaptation and a compact online interface.
-
-若 persistent joint 或其他 routing 胜出，则按真实结果重写，不强行维持上述叙事。
+若 D/L/C 给出稳定结构规律，但 B1 失败，论文仍可定位为 representation/interface study；
+若只有 B 显示成本优势，则降级为 parameter-efficient adaptation study；若 D/L/C/B 都
+没有稳定规律，则保留为 negative study，不用 A/R 扩展实验数量包装机制贡献。
 
 ## 6. Execution Roadmap
 
 ```text
-G0: Model3 O2 selected; close the Long paired-CI certification subgate
-G1: execute Matrix A + R on the O2 carrier and test for a mechanism insight
-G2: if G1 succeeds, run Matrix B, then secondary C/D deployment checks
+G0: O2 fixed as the strong carrier; Long paired-CI certification remains parallel
+G1: Matrix D — decide the temporal canvas
+G2: Matrix L — localize control-readable depths
+G3: Matrix C — compose only the selected depths
+G4: Matrix B — adapt only those depths
+G5: minimal A/R sanity checks
 ```
 
-- O2 已成为正式主线，G1 的 A/R preflight 与执行可以开始；
-- Long paired CI 待补不阻塞 carrier 选择，但在完成前不能声称 O2 已通过 `δ=2%`
-  non-inferiority；
-- A/R 没有形成可复现规律时，不扩展新的 gradient mechanism；
-- B 只允许一个条件式 B1.5，不展开无边界的 rank × layer 搜索；
-- C/D 只能在 A/R/B recipe 冻结后执行；
+- 每个 Gate 只冻结下一阶段需要的变量；后续矩阵不得回改前序 treatment。
+- Matrix L 不扩展为无边界全层搜索；先验证 O2 注册的 8/16/24 depths。
+- Matrix C 不同时改变 depth set 与 aggregation。
+- Matrix B 失败时只允许一个 B1.5 邻域 bracket。
+- A/R 只负责 sanity，不抢占 D/L/C/B 的主预算。
 - 用户已批准 O2 主线执行；每次 server launch 仍必须满足
   [experiment-contract.md](experiment-contract.md) 的 preflight 与 artifact contract。

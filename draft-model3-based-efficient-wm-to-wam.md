@@ -7,6 +7,8 @@
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
 > 本归档正文中的旧 G0 结论已经过时：当前决定以 Model3 O2 为主线载体；Long 的
 > `δ=2%` non-inferiority 仍等待合同规定的 paired CI。
+> 本归档正文中的旧实验顺序也已经过时；当前优先级为
+> **O2 → D → L → C → B → minimal A/R sanity checks**。
 
 ## 高效 WM-to-WAM 实验 Proposal
 

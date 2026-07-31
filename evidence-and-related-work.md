@@ -11,7 +11,8 @@
 - 本文主线只研究 **in-place adaptation**：部署时仍运行被适配的 Video-DiT 或 video
   generator computation。
 - 当前主线 carrier 是 **Model3 O2**。其 Long checkpoint identity 与 Long/Object 正式结果
-  已进入 source mirror；A/R/B 仍需在统一 O2 合同下重训，不能由历史数字代替。
+  已进入 source mirror；当前实验顺序为 D → L → C → B → minimal A/R sanity，所有新
+  controls 都必须在统一 O2 合同下执行。
 - 历史 Model3、Model3 Regression 和 Model5 退为 diagnostic/reference tracks。
 - 论文没有公开的字段记为“未报告”，不得根据方法名或结构图推断。
 - 本文不提出 generator-state distillation、独立 current-only student 或 generator-free
@@ -21,18 +22,18 @@
 
 | 方法 | WM 适配 | Supervision / routing | 在线接口与推理 | 对本文的作用 |
 |---|---|---|---|---|
-| Light-WAM | frozen Wan base + LoRA/adapters | joint video/action；具体 routing 待代码核对 | selected layers + state fusion；current observation Wan once | 证明轻量适配可行；不是 supervision/routing 的 matched causal study |
+| Light-WAM | frozen Wan base + LoRA/adapters | joint video/action；具体 routing 待代码核对 | selected layers + state fusion；current observation Wan once | 证明轻量适配可行；不是 temporal/depth 的 matched causal study |
 | FastWAM | 统一成本仍需核对 | joint video/action flow | Action-DiT 逐层读取 video K/V；video prefill + action denoising | 展示持续 predictive objective 与高带宽接口 |
 | DiT4DiT | joint configuration | video/action experts 联合训练 | Video-DiT hidden condition；noisy future grid + action denoising | future slots、接口与 objective 同时变化 |
 | DeVA | Video2World DiT + Action Expert 均训练 | warmup + joint | multi-layer/multi-timestep transfer；joint future/action process | 支持重容量方案，但不能单独归因 decoupling |
 | VidMan | Stage 2 可更新或冻结 VDT | video pretrain → action-only | layer-wise action adapter；fixed noisy video latents | 支持 staged hypothesis 与 action-gradient 研究 |
-| Efficient-WAM / AHA-WAM | compressed/asynchronous future use | 各自效率机制 | 面向训练或推理成本优化 | 系统效率参考，不直接回答当前 schedule/routing |
-| Model3 O2（active carrier） | frozen Wan base + all-layer rank-64 LoRA/adapters | joint future-video/action flow | recurrent layers 8/16/24 + layer-aware `q1/q2/q3` readout；H8/R8、solver 10 | 当前 A/R/B 的统一实验载体 |
+| Efficient-WAM / AHA-WAM | compressed/asynchronous future use | 各自效率机制 | 面向训练或推理成本优化 | 系统效率参考，不直接回答 temporal/depth attribution |
+| Model3 O2（active carrier） | frozen Wan base + all-layer rank-64 LoRA/adapters | joint future-video/action flow | recurrent layers 8/16/24 + layer-aware `q1/q2/q3` readout；H8/R8、solver 10 | 当前 D/L/C/B 与 A/R sanity 的统一载体 |
 | Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint `L_video + L_action` | recurrent queries over layers 8/16/24；current Wan once + action solver | 历史 upper anchor；新 carrier 上必须重训 |
 
-跨论文共同缺口不是“Video-DiT 能否做 WAM”，而是：在固定母体、action carrier、数据与
-评测后，future supervision 应何时使用、video/action gradients 应进入哪里，以及保持收益
-需要多少 adaptation/interface capacity。
+跨论文共同缺口不是“Video-DiT 能否做 WAM”，而是：在固定强 carrier 后，动作前向是否
+需要 temporal canvas、控制信息在哪些深度可读、这些深度应如何组合，以及是否只适配这些
+blocks 就足以保持闭环性能。Supervision 与 gradient routing 退为最后的 sanity boundary。
 
 ## 3. EnFold Scope and Novelty Boundary
 
@@ -83,7 +84,7 @@ in-place PEFT treatments 不是同一组可交换变量。
 | Light-WAM plan-call latency | 70.327 ms | 历史受控测试 |
 
 O2 的 Object 高表现与 Long 接近 parent 的表现共同支持其成为 `C*`，但不能替代 `C*`
-上重新训练的 A/R/B controls。特别是 flow 与 regression 来自不同训练路径，其差异不能
+上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，其差异不能
 归因于 decoder-only treatment。
 
 ### 4.1 O2 Long Paired Comparison
@@ -133,10 +134,10 @@ VidMan paper-reported CALVIN ablation：
 | Frozen VDT + adapter/head | 2.98 |
 | Action loss 更新 VDT + adapter/head | 3.42 |
 
-DeVA 与 VidMan 共同构成 Matrix A/R 的研究动机：future-video objective 可能帮助 dynamics
-acquisition，但持续 joint gradient 也可能干扰 control specialization。两篇论文的
-backbone、数据、action interface、compute 与 schedule 并不匹配，因此该推断仍需同一
-carrier 内的受控实验验证。
+DeVA 与 VidMan 说明 future-video objective 和 gradient route 可能影响控制，但两篇论文的
+backbone、数据、action interface、compute 与 schedule 并不匹配。由于当前主线优先回答
+temporal/depth/interface/adaptation path，这组证据只支撑最后的 minimal A/R sanity checks，
+不再支撑前置的大规模 A/R discovery matrix。
 
 ## 6. Closed Interpretations
 
@@ -169,7 +170,7 @@ trainable params / GPU hours / memory / latency：
 消融是否匹配参数、训练预算和推理协议：
 能够支持的结论：
 不能支持的结论：
-与 RQ1–RQ4 的关系：
+与 Matrix D/L/C/B 或 A/R sanity 的关系：
 证据来源：用户已读笔记 / AI 预读 / 原论文 / 外部检索：
 ```
 
@@ -182,9 +183,12 @@ trainable params / GPU hours / memory / latency：
 - 不把 checkpoint 当作独立 seed；
 - 不把 McNemar `p>0.05` 或“差异不显著”当作 non-inferiority；
 - 不把一个 B1 候选称为绝对 minimum；
-- 不让 Matrix C 同时改变层数、aggregation、recurrence 与 capacity；
+- 不在 Matrix D 冻结 temporal contract 前运行 L；
+- 不让 Matrix L 同时改变 depth、aggregation、PEFT 与 action head；
+- 不让 Matrix C 重新选择 layers，或同时改变 aggregation 与 capacity；
+- 不在 Matrix L/C 冻结前定义 selected-layer B1；
 - 不跳过 PEFT × interface 交互检查；
-- 不在 A/R insight gate 前扩展 C/D；
+- 不让 A/R sanity 抢占 D/L/C/B 的主预算，或未经单独批准恢复完整 A/R grid；
 - 不无条件跑满所有 80K/150K 实验；
 - 不用 probe、offline loss 或 gradient cosine 代替闭环成功率；
 - O2 主线虽已获批准，但不在缺少 preflight/复现字段时启动 server run，也不借此扩展合同
