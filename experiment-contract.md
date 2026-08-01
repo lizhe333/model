@@ -13,6 +13,9 @@
 - G0 的 carrier-selection 已完成；Long 对 parent 的 `δ=2%` non-inferiority
   certification 仍等待 paired CI，但不阻塞 Matrix D。
 - 历史 Model3/Regression/O2 数字是 evidence anchors，不能替代新的 matched controls。
+- [Low-Rank Delta Dynamics WAM](low-rank-delta-dynamics-wam-experiment.md) 是独立候选
+  方法分支。当前授权范围仅为实验文档与 G0/G1 只读诊断设计；G2 之后的新训练不属于
+  本合同已批准的 D/L/C/B scope，必须另行冻结 carrier、预算与 treatment。
 
 ## 1. G0: Fixed O2 Carrier
 

@@ -6,6 +6,10 @@
 > O2 carrier 已选定；Long non-inferiority 统计子门仍待 paired CI。
 > 执行约束见 [experiment-contract.md](experiment-contract.md)，文献与历史证据见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
+>
+> 新候选方法分支“显式低秩机器人视频动力学增量 + 共享 delta action code”见
+> [low-rank-delta-dynamics-wam-experiment.md](low-rank-delta-dynamics-wam-experiment.md)。
+> 该分支当前只完成实验设计，不替换已批准的 D/L/C/B 顺序，也不自动启动新训练。
 
 ## 1. Problem and Scope
 
