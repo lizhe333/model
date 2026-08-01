@@ -11,8 +11,8 @@ state_fusion_action_expert_config: null
 action_feature_config:
   temporal_scope: current_plus_noisy_future
   fixed_future_timestep: 1000
-  # Experiment configs override this value explicitly. Two is the current
-  # Object treatment; historical Spatial/Long configs retain eight.
+  # Experiment configs override this value explicitly. One is the current
+  # Object/Long treatment; historical Spatial/Long artifacts retain eight.
   num_future_latent_slots: 1
   spatial_downsample_factor: 1
 

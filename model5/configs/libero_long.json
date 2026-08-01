@@ -45,7 +45,7 @@
     "uses_privileged_future_latent_as_input": false,
     "action_feature_temporal_scope": "current_plus_noisy_future",
     "fixed_feature_timestep": 1000,
-    "future_feature_latent_slots": 8,
+    "future_feature_latent_slots": 1,
     "action_feature_spatial_downsample_factor": 1
   },
   "training": {
@@ -65,7 +65,7 @@
     "seed": 42,
     "max_grad_norm": 1.0,
     "weight_decay": 0.01,
-    "gradient_checkpointing": true,
+    "gradient_checkpointing": false,
     "wandb_mode": "offline"
   },
   "evaluation": {

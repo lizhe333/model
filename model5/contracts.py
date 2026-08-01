@@ -128,6 +128,46 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
                 "high-resolution Spatial Model5 requires gradient checkpointing",
                 errors,
             )
+    elif evaluation.suite == "libero_10":
+        _require(
+            data.dataset_dir.name == "libero_10_no_noops_lerobot",
+            "Long config must use the no-noops Long dataset",
+            errors,
+        )
+        _require(
+            data.latent_cache_dir.name == "libero_10_2cam224",
+            "Long config must use the registered dual-camera latent cache",
+            errors,
+        )
+        _require(
+            architecture.action_feature_temporal_scope == "current_plus_noisy_future",
+            "formal Long training must use the Model5 temporal treatment",
+            errors,
+        )
+        _require(
+            architecture.future_feature_latent_slots == 1,
+            "the current formal Long profile must align with Object at one future feature slot",
+            errors,
+        )
+        _require(
+            architecture.action_feature_spatial_downsample_factor == 1,
+            "formal Long training must preserve high-resolution action features",
+            errors,
+        )
+        _require(
+            (training.batch_size, training.gradient_accumulation_steps) == (8, 2),
+            "Long Model5 profile must be B8/GA2",
+            errors,
+        )
+        _require(
+            not training.gradient_checkpointing,
+            "the current one-slot Long profile must align with Object without gradient checkpointing",
+            errors,
+        )
+        _require(training.max_steps == 150_000, "Long training budget must be 150000 steps", errors)
+        _require(training.save_every == 5_000, "Long checkpoint cadence must be 5000 steps", errors)
+        _require(training.warmup_steps == 1_000, "Long warmup must be 1000 steps", errors)
+        _require(training.learning_rate == 1e-4, "Long learning rate must be 1e-4", errors)
     elif evaluation.suite == "libero_object":
         _require(
             data.dataset_dir.name == "libero_object_no_noops_lerobot",
@@ -169,38 +209,6 @@ def validate_contract(config: Model5Config, *, check_paths: bool = True) -> dict
         _require(training.save_every == 5_000, "Object checkpoint cadence must be 5000 steps", errors)
         _require(training.warmup_steps == 1_000, "Object warmup must be 1000 steps", errors)
         _require(training.learning_rate == 2e-4, "Object learning rate must be 2e-4", errors)
-    elif evaluation.suite == "libero_10":
-        _require(
-            data.dataset_dir.name == "libero_10_no_noops_lerobot",
-            "Long config must use the no-noops LIBERO-10 dataset",
-            errors,
-        )
-        _require(
-            data.latent_cache_dir.name == "libero_10_2cam224",
-            "Long config must use the registered dual-camera latent cache",
-            errors,
-        )
-        _require(
-            architecture.action_feature_temporal_scope == "current_plus_noisy_future",
-            "formal Long training must use the Model5 temporal treatment",
-            errors,
-        )
-        _require(
-            architecture.action_feature_spatial_downsample_factor == 1,
-            "formal Long training must preserve high-resolution action features",
-            errors,
-        )
-        _require(
-            (training.batch_size, training.gradient_accumulation_steps) == (8, 2),
-            "Long Model5 profile must be B8/GA2",
-            errors,
-        )
-        _require(training.gradient_checkpointing, "Long Model5 requires gradient checkpointing", errors)
-        _require(training.max_steps == 150_000, "Long training budget must be 150000 steps", errors)
-        _require(training.save_every == 5_000, "Long checkpoint cadence must be 5000 steps", errors)
-        _require(training.warmup_steps == 1_000, "Long warmup must be 1000 steps", errors)
-        _require(training.learning_rate == 1e-4, "Long learning rate must be 1e-4", errors)
-
     checked_paths: list[Path] = []
     if check_paths:
         checked_paths = [

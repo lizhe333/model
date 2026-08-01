@@ -5,10 +5,11 @@ action queries benefit from Wan hidden states over a Model3-matched
 high-resolution clean current latent plus policy-owned noisy future slots at a
 fixed diffusion timestep.
 
-The implementation gate is complete when the self-contained Model5 code passes
-its tensor, leakage, gradient, checkpoint, and real one-step smoke contracts in
-`specs/08-model5-asymmetric-tri-timestep-wam.md`. Formal training and benchmark
-acceptance are deferred until GPUs 0-3 are explicitly released for Model5.
+The implementation gate and the first formal Object sweep are complete. The
+one-slot Object 10K/15K/20K checkpoints were terminally validated at both
+solver 10 and solver 5; 15K is best observed under both. The fresh one-slot
+Long B8/GA2 no-GC treatment is now training from the Wan base. Long has no
+closed-loop result yet.
 
 The implementation is self-contained under `model5/`. Its infrastructure copy
 comes from Model3's clean Light-WAM commit `b2785f66` snapshot; it does not

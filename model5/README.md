@@ -61,8 +61,8 @@ The default config is the high-resolution treatment
 `model5/configs/libero_spatial_current_only.json`.
 
 The future-slot count is an explicit experiment/config value and part of the
-strict checkpoint identity. Historical Spatial/Long configs keep eight slots;
-the current Object profile uses one.
+strict checkpoint identity. The current Object and Long profiles both use one;
+historical eight-slot Spatial/Long artifacts are incompatible with them.
 
 ## Validate
 
@@ -107,9 +107,10 @@ bash model5/scripts/train_long.sh
 ```
 
 The formal Long treatment uses `libero_10`, the complete shared dual-camera
-latent cache, high-resolution current-plus-noisy-future action features, four
-GPUs, B8/GA2, Wan gradient checkpointing, and a 150,000-step budget. It starts
-fresh from the Wan base and does not resume Model3 weights.
+latent cache, high-resolution current-plus-one-noisy-future action features,
+four GPUs, B8/GA2, no Wan gradient checkpointing, and a 150,000-step budget.
+It starts fresh from the Wan base and does not resume Model3 weights or
+historical eight-slot Model5 states.
 
 ## Train Object (1 Noisy Slot)
 
@@ -123,12 +124,45 @@ future slot, B8/GA2, no Wan gradient checkpointing, and 150,000 optimizer steps.
 It starts fresh from the Wan base; historical eight-slot checkpoints are not
 compatible with this profile, nor is the superseded two-slot Object run.
 
+## Evaluate Object Checkpoints
+
+```bash
+conda run --no-capture-output -n lightwam-libero-eval \
+  python -m model5.scripts.eval_object_two_stage \
+  --train-run runs/I-003/model5/backend_runs/<object-run-id> \
+  --run-root runs/I-003/model5/<evaluation-run-id>
+```
+
+The evaluator requires complete 10K, 15K, and 20K checkpoints. It runs all
+three at solver 10 and solver 5; solver 10 runs first only to schedule shared
+GPU resources. Both are retained as matched per-checkpoint evaluation results.
+Each condition is 10 Object tasks by 50 episodes.
+
+## Validated Object Sweep
+
+The one-slot Object sweep is complete. Its action-feature grid is one clean
+current latent plus one policy-owned Gaussian-noise future latent, with Wan
+temporal timesteps `[0,1000]`; training used B8/GA2 without Wan gradient
+checkpointing. Each of the three checkpoints was evaluated for 500 matched
+episodes at both action solvers:
+
+| Checkpoint | Solver 10 | Solver 5 |
+|---|---:|---:|
+| 10K | 400/500 (80.0%) | 448/500 (89.6%) |
+| 15K | 466/500 (93.2%) | 478/500 (95.6%) |
+| 20K | 459/500 (91.8%) | 454/500 (90.8%) |
+
+Solver 10 ran before solver 5 only to allocate the shared GPUs. Both columns
+are formal matched results, not a primary/diagnostic split. Step 15K is the
+best observed checkpoint under both solver settings. The full protocol, paired
+outcomes, and evidence boundary are recorded in [Object.md](Object.md).
+
 ## Progress Logs
 
 - training: `runs/I-003/model5/backend_runs/<run-id>/logs/training.log`;
 - single-GPU smoke while active: `/tmp/<smoke-run-id>/logs/smoke.log`;
 - evaluation summary: `<eval-run>/logs/evaluation.log`;
-- per-task evaluation: `<eval-run>/logs/task_logs/libero_spatial_task<N>.log`.
+- per-task evaluation: `<eval-run>/solver<steps>_step_<step>/logs/task_logs/libero_object_task<N>.log`.
 
 Launch scripts stream the same output to the terminal and the `.log` file.
 Smoke logs are temporary and are removed after their terminal result is copied

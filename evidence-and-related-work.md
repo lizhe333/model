@@ -80,6 +80,8 @@ in-place PEFT treatments 不是同一组可交换变量。
 | Released Light-WAM Long | 461/500，92.2% | 本地发布权重复测 |
 | Model3 Object flow-10 | 440/500，88.0% | 历史固定配置 |
 | Model3 Object flow-5 | 467/500，93.4% | post-hoc solver diagnostic |
+| Model5 Object step 15K, solver 10 | 466/500，93.2% | one-slot `[0,1000]` temporal treatment；three-checkpoint two-solver sweep，terminally validated |
+| Model5 Object step 15K, solver 5 | 478/500，95.6% | same checkpoint/protocol; terminally validated matched solver result |
 | Model3 Regression Object step 20K | 467/500，93.4% | predeclared checkpoint set 中 best observed |
 | Released Light-WAM Object | 497/500，99.4% | 本地发布权重复测 |
 | Model3 plan-call latency | 232.994 ms | 历史受控测试 |
@@ -89,7 +91,30 @@ O2 的 Object 高表现，以及 Long/Spatial 接近 parent 的表现，共同�
 替代 `C*` 上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，
 其差异不能归因于 decoder-only treatment。
 
-### 4.1 O2 Long Paired Comparison
+### 4.1 Model5 Object Two-Solver Sweep
+
+Model5 Object evaluates one clean current slot plus one policy-owned noisy
+future slot at explicit Wan timesteps `[0,1000]`. The 10K/15K/20K checkpoints
+all completed terminal validation for the same 500 Object task/trial identities
+at both action solvers:
+
+| Checkpoint | Solver 10 | Solver 5 |
+|---|---:|---:|
+| 10K | 400/500 | 448/500 |
+| 15K | 466/500 | 478/500 |
+| 20K | 459/500 | 454/500 |
+
+Solver 10 executed first as a resource schedule only. Both are retained as
+formal matched results, and this sweep does not impose an automatic cross-solver
+selection rule. Step 15K is best observed under both settings. Matched outcome
+tables are: 10K `(396 both-success, 4 solver-10-only, 52 solver-5-only, 48
+both-fail; p=1.10e-11)`, 15K `(461, 5, 17, 17; p=0.0169)`, and 20K `(441, 18,
+13, 28; p=0.4731)`. This is one trained treatment family, not an independent
+seed-level comparison of solver or temporal-slot effects. The source mirror
+does not include checkpoints, videos, or raw rollout logs; see
+[`model5/Object.md`](model5/Object.md) for the retained-evidence boundary.
+
+### 4.2 O2 Long Paired Comparison
 
 O2 Long 10K 与固定 Model3 Long 80K parent 使用相同 500 个 task/trial identities：
 
@@ -108,7 +133,7 @@ portability；不能说 O2 改进了 Long，也不能说已经通过 `δ=2%` non
 `> -2 pp` 为通过条件。当前 mirror 未包含逐 task paired outcomes，因此 formal
 non-inferiority 状态为 **pending**。权威汇总见 [`model3_o2/Long.md`](model3_o2/Long.md)。
 
-### 4.2 O2 Spatial Historical Comparison
+### 4.3 O2 Spatial Historical Comparison
 
 O2 Spatial 的 predeclared 5K/10K checkpoints 分别达到 481/500（96.2%）和
 489/500（97.8%），10K 被选中。固定 Model3 Spatial 60K 历史结果为
