@@ -64,9 +64,12 @@ Y_{\mathrm{pre}}=G_0W_{\mathrm{head}}.
 \]
 
 对 [`model5/third_party/light_wam/src/lightwam/models/wan22/wan_video_dit.py`](model5/third_party/light_wam/src/lightwam/models/wan22/wan_video_dit.py)
-的静态审计显示，当前 Wan 配置为 \(D=3072\)，最终线性层输出
-\(C_p=48\times1\times2\times2=192\)；\(N\) 以及动作 endpoint 对应的 token 索引仍须在
-G0 用真实 batch 记录。候选方法不以“LoRA rank 小”间接声称场低秩，而是直接预测
+与 Wan2.1 loader preset 的静态审计显示，Object carrier 的原始 YAML 仍保留 5B
+占位维度 `3072 -> 48`，但 `video_backbone_type=wan2_1_t2v` 会在实例化前严格覆盖为
+\(D=1536\)、`out_dim=16`，因此最终线性层输出
+\(C_p=16\times1\times2\times2=64\)。G0 必须在真实 batch 上确认该 runtime preset、\(N\)
+以及动作 endpoint 对应的 token 索引；不得把未生效的 YAML 占位值 `3072 -> 192`
+写入 rank 合同。候选方法不以“LoRA rank 小”间接声称场低秩，而是直接预测
 pre-head token correction：
 
 \[
@@ -263,10 +266,10 @@ G1 失败时停止方法开发，保留为 negative representation result；不�
 | Analysis checkpoint | Model3 O2 checkpoint SHA；只作强 baseline 与 \(R_{\mathrm{O2}}^*\) 次级分析，不作主 base |
 | Action decoder | 所有方法统一的 Action-DiT initialization、architecture、H8/R8、solver 与训练配置 |
 | Temporal carrier | D2：one current latent + one policy-owned Gaussian future probe，temporal `[0,1000]`，同空间分辨率；D1 是 current-only control |
-| Video target | true future 只定义 H8 chunk 对应 endpoint 的 flow target；冻结 noise convention，不把真实未来送入 Wan |
-| Endpoint mapping | `H8/R8 chunk endpoint -> raw frame index -> VAE latent slot -> Wan patch-token indices` 的精确映射 |
+| Video target | true future 只定义 H8 chunk 对应 endpoint 的 flow target；冻结 noise convention，不把真实未来送入 Wan；future input noise 与 scheduler target 必须复用同一 tensor |
+| Endpoint mapping | `H8 actions [0,8) -> raw observation frame 8 -> raw offsets [0,2,4,6,8] 的 5-frame VAE clip -> VAE latent slot 1 -> D2 future patch-token indices`；必须验证该 clip 的 current latent 与已有 cache slot 0 一致。现有 33-frame、ratio-4 cache 的 latent slots 1/2 分别止于 raw frame 16/32，不能冒充 H8 target |
 | Conditioning | current cameras、language；proprioception 是否使用要统一；明确禁止 expert future action/reward/state |
-| Head/shape audit | 运行时记录 \(N,D,C_p\)、head 输入/输出 shape、展平顺序、unpatchify 前后 shape；静态预期为 `3072 -> 192` |
+| Head/shape audit | 运行时记录 \(N,D,C_p\)、head 输入/输出 shape、展平顺序、unpatchify 前后 shape；冻结的 Wan2.1 Object runtime 预期为 `1536 -> 64`，同时记录被 loader 覆盖的 YAML 占位值 `3072 -> 192` |
 | Rank grid | \(\rho\in\{1/32,1/16,1/8,1/4\}\)，shape audit 后导出并冻结每个整数 \(r\) |
 | Split | episode-heldout train/validation/test；task 与 suite 标识 |
 | Cost | GPU type/count、forward/backward 数、缓存成本、峰值显存与 accelerator-hours |
@@ -615,18 +618,103 @@ current-only control，不是 LRD-WAM 主方法。
 
 ## 14. 最小下一步
 
-当前不应直接实现完整 LRD-WAM。最小、信息增益最高的下一步是：
+### 14.1 2026-08-01 Object G0/G1 preliminary execution record
 
-1. 完成零训练 G0 shape audit：记录 `3072 -> 192` head 的运行时 \(N,D,C_p\)、token layout
-   与 unpatchify 前后 shape；
-2. 冻结 `H8/R8 endpoint -> frame -> VAE latent slot -> Wan patch tokens` 的精确映射，并复核
-   Model3/O2/Model5 server artifacts；
-3. 在 Object 与 Long 的同合同 D2 窗口上提取
+零训练 Object G0 与预备 G1 已在
+`runs/I-003/model5/20260801_lrd_wam_object_g0_g1/` 完成并通过 retained artifact
+validator。G0 只加载原始 Wan2.1-T2V-1.3B，实测
+`N_future=392, D=1536, C_p=64`、future slice `[392,784)`、rank grid
+`r={2,4,8,16}`；target layout、Wan unpatchify 与 H8 clip current/cache current
+round trip 的 max error 均为 0。checkpoint structure 为 825/825 compatible，且
+11 个跨 embedding/block/head 的抽样 tensor 在 BF16 load 后逐元素完全一致。
+
+8-sample smoke 与 64-sample integration 按顺序完成。64 样本在 `rho=1/8, r=8`
+时 real residual 的 median/p10 `E(r)` 为 83.54%/82.17%；entry-permuted 与
+random-pair median 分别为 21.54% 与 27.32%。这些结果表明 Object 正式 G1 的
+实现与合同已具备启动条件，但仍只是 preliminary readiness evidence：没有运行正式
+256--512 Object、Long、across-sample PCA、phase 分层或 natural-video control，因而不能
+作正式 G1 Go/No-Go，更不能启动 G2。
+
+### 14.2 2026-08-01 formal Object G1 protocol
+
+用户已单独授权启动正式 Object G1。运行前冻结以下内容，查看正式结果后不得修改：
+
+- 正式样本数为 420，位于预声明的 256--512 范围内。运行时数据身份以
+  `libero_object_no_noops_lerobot/meta/info.json` 和 `episodes.jsonl` 为准：两者均只包含
+  457 个 Object episode，而不是 500；这 457 个 episode 全部支持无 padding 的完整 H8
+  window。各 task 可用 episode 数为 `47/43/45/50/46/42/45/47/47/45`，因此正式集合按
+  最小 task 覆盖固定为 `10 tasks x 42 episodes`。其余 37 个有效 episode 仅因 task balance
+  未使用；不存在 43 个被 runtime adapter 排除的不完整 episode，也不补齐或重复采样；
+- 每个 task 的 42 个 episode 用 seed 13407 固定抽样，并按 episode 严格拆分为
+  train/validation/test `24/9/9`，总计 `240/90/90`。同一 episode 只贡献一个 window，
+  不跨 split；
+- 每个 task、每个 split 内将 episode 等分为 early/middle/late 三组，window start 分别位于
+  该 episode 有效 H8 start range 的 10%/50%/90% 位置。该标签只表示 normalized episode
+  progress，不冒充 contact/non-contact annotation；
+- per-sample SVD、raw target、raw pretrained、entry-permuted、random-pair controls、
+  `rho -> r`、noise 与 shuffle seed 均保持 8/64 preliminary 合同不变；
+- across-sample PCA 将每个 `392 x 64` residual 按冻结 layout 展平，只在 240 个 train
+  episode 上拟合 centered basis，并在 validation/test 上报告 rank 2/4/8/16 projection
+  energy；不得用 validation/test 重选 basis 或 rank；
+- cross-task overlap 只使用各 task 的 train episodes，在 rank 8 flattened-residual PCA
+  basis 上报告 principal angles 与 mean squared cosine overlap；
+- task、split 与 early/middle/late 均报告 rank-energy 分层。Object-only 正式结果仍不能
+  单独触发 G2；proposal 的最终 G1 Go/No-Go 继续要求 matched Long；
+- formal artifact root 固定为
+  `runs/I-003/model5/20260801_lrd_wam_object_g1_formal420/`。本次仍不启动 Long、G2、
+  Action-DiT 训练或闭环评测。
+
+### 14.3 2026-08-01 formal Object G1 result
+
+正式运行在 `runs/I-003/model5/20260801_lrd_wam_object_g1_formal420/` 完成，terminal
+manifest 为 `complete_stopped_after_object_formal420`，独立 validator 为 `pass`。420 个
+样本来自 10 个 task 各 42 个唯一 episode，split 为 `240/90/90`，normalized
+early/middle/late 各 140。正式 G0 复跑继续通过：只加载原始 Wan2.1-T2V-1.3B，825/825
+checkpoint keys compatible，11 个抽样 tensor 在 BF16 load 后逐元素相等；所有 target
+layout、unpatchify、future slice、head、noise reuse 与 current-latent audit error 均为 0。
+
+per-sample SVD 的 median explained energy 为：
+
+| Quantity | r=2 | r=4 | r=8 | r=16 |
+|---|---:|---:|---:|---:|
+| real residual | 54.99% | 74.46% | 83.26% | 90.47% |
+| entry-shuffled residual | 5.90% | 11.39% | 21.52% | 39.29% |
+| random-pair residual | 11.62% | 18.13% | 27.87% | 44.49% |
+| raw target | 21.24% | 28.88% | 37.81% | 52.37% |
+| raw pretrained output | 13.31% | 18.39% | 27.79% | 44.17% |
+
+在主检查 `rho=1/8, r=8`，real residual median/p10 为 83.26%/81.55%，相对
+entry-shuffled median 高 61.73 pp。10 个 task 的 real median 为 82.61%--84.27%，最低
+task p10 为 80.45%；early/middle/late median 为 83.11%/83.85%/82.55%，最低 phase p10
+为 80.46%。因此冻结的 Object-only per-sample/task/normalized-phase signal 为 `pass`。
+
+该结论不能外推为一个强共享低维 basis。只用 240 个 train episode 拟合的 centered global
+PCA 在 rank 2/4/8/16 解释 train 总 centered variance 的 17.61%/26.55%/36.72%/46.84%；
+held-out validation/test 的 per-sample centered projection median 在 rank 8 仅为
+31.03%/30.08%，rank 16 为 37.64%/35.69%。包含 train mean 后的 raw reconstruction
+median 较高：validation/test rank 8 为 74.94%/75.27%，rank 16 为 77.37%/77.65%。
+45 个 rank-8 task-basis pair 的 mean squared-cosine overlap median 为 0.1675，mean
+principal angle median 为 69.56 度，支持 task-specific basis 而不是单一共享 basis 的解释。
+
+本次共执行 421 次 Wan 与 421 次 VAE forward，用时 152.54 秒，CUDA allocated peak
+为 3.619 GiB；没有 optimizer、backward、robot checkpoint、adapter/LoRA、Long、G2、
+Action-DiT 训练或闭环评测，也没有保存 residual/basis tensor。proposal-level G1
+Go/No-Go 仍为 `not_evaluable_without_matched_long`。natural-video control 与经过验证的
+contact/non-contact phase labels 仍不可用。
+
+### 14.4 后续最小步骤
+
+当前仍不应直接实现完整 LRD-WAM。下一步是：
+
+1. 不启动 G2、Action-DiT 训练或闭环评测；Object 正式结果本身不能触发这些阶段；
+2. 若另行授权 matched Long，则先冻结 Long 的数据可用数、task balance 与同合同 D2
+   selection，再在 Object 与 Long 的同合同 D2 窗口上提取
    \(Y_{\mathrm{pre}},Y^*,R_{\mathrm{pre}}^*\)，只以 G1-primary 决定 Go/No-Go；
-4. 只在 G1 通过后，为 G2-A/G2-B 与 three bypass interventions 编写 server handoff；
-5. 只有 G2 通过，才用一个冻结 rank 申请 G3-stage 1 的单 seed Object screening；
-6. stage 1 淘汰后才为 LR-M1/M2/M5 申请 3-seed、500-episode confirmation 预算；
-7. LR-M4/M6 只在 LR-M5 通过后作为机制补充。
+3. 只在 Object 与 Long 都通过冻结的 cross-suite G1 gate 后，才为 G2-A/G2-B 与 three
+   bypass interventions 编写新的执行合同；
+4. 只有 G2 通过，才用一个冻结 rank 申请 G3-stage 1 的单 seed Object screening；
+5. stage 1 淘汰后才为 LR-M1/M2/M5 申请 3-seed、500-episode confirmation 预算；
+6. LR-M4/M6 只在 LR-M5 通过后作为机制补充。
 
 这条顺序把最便宜的证伪实验放在前面，并把核心主张固定为：
 
