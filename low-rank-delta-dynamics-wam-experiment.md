@@ -702,19 +702,88 @@ Action-DiT 训练或闭环评测，也没有保存 residual/basis tensor。propo
 Go/No-Go 仍为 `not_evaluable_without_matched_long`。natural-video control 与经过验证的
 contact/non-contact phase labels 仍不可用。
 
-### 14.4 后续最小步骤
+### 14.4 2026-08-01 matched Long G1 protocol
+
+用户已授权验证 matched Long G1。查看任何 Long residual 结果前冻结以下协议：
+
+- Long 使用 `libero_10_no_noops_lerobot`。源 metadata 包含 388 个 episode、10 个 task，
+  task 可用数为 `43/33/45/38/46/35/37/38/32/41`，episode 长度范围 150--505。
+  正式样本固定为 `10 tasks x 30 episodes = 300`，位于预声明的 256--512 范围内；
+  之所以不用理论最大平衡数 320，是为了让 task、split、early/middle/late 同时严格均分；
+- 每个 task 使用 seed 13407 固定抽样 30 个唯一 episode，按 episode 拆分为
+  train/validation/test `18/6/6`，总计 `180/60/60`。每个 task/split 内按有效 H8 start
+  range 的 10%/50%/90% 固定 early/middle/late，因而每 task 三阶段各 10 个、全局各
+  100 个；阶段标签仍仅表示 normalized episode progress，不冒充 contact annotation；
+- 正式运行前先在同一 Long 数据上重跑 fail-closed G0，再按 task round-robin 顺序完成
+  8-sample smoke 和 64-sample integration。只有 G0、smoke、integration 均完成，才执行
+  formal300；
+- base、D2、H8 endpoint、future-only slice、noise reuse、target inverse layout、
+  `rho -> r`、per-sample SVD、raw target/pretrained、entry-permuted、random-pair、
+  train-only centered PCA 与 rank-8 task-basis overlap 均与 Object 完全同合同。唯一数据差异
+  是 suite 与因可用 episode 数导出的样本规模；
+- 原始 pretrained Wan2.1-T2V-1.3B 仍是唯一 base；不得加载正在训练或历史的 Model5 Long、
+  Model3/O2 或任何机器人 checkpoint；
+- cross-suite 判定固定使用 `rho=1/8, r=8`。只有 Object formal420 与 Long formal300 的
+  overall、所有 task 和三个 normalized phases 均满足 6.4 节阈值，才把 G1 记为
+  `pass_input_conditional_low_rank`。共享全局 PCA 不是硬门槛；若其 held-out energy 低，
+  claim 必须继续限定为 input-conditional/task-specific basis；
+- Long artifact root 固定为
+  `runs/I-003/model5/20260801_lrd_wam_long_g1_matched300/`。用户可读报告必须为中文。
+  本次仍不启动 G2、训练、optimizer、backward 或闭环评测；natural-video control 与经过
+  验证的 contact/non-contact labels 继续明确记为不可用。
+
+### 14.5 2026-08-01 matched Long G1 result
+
+matched Long G1 已在
+`runs/I-003/model5/20260801_lrd_wam_long_g1_matched300/` 完成；terminal manifest 为
+`complete_stopped_after_matched_long_g1`，独立 validator 为 `pass`。Long G0 只加载原始
+Wan2.1-T2V-1.3B，继续得到 `N_future=392, D=1536, C_p=64`、future slice
+`[392,784)` 与 rank grid `r={2,4,8,16}`；825/825 checkpoint keys compatible，11 个
+抽样 tensor 在 BF16 load 后精确相等，所有 layout/head/noise/cache audit error 均为 0。
+
+8-sample smoke、64-sample integration 与 formal300 按冻结顺序完成。formal300 的
+per-sample median explained energy 为：
+
+| Quantity | r=2 | r=4 | r=8 | r=16 |
+|---|---:|---:|---:|---:|
+| real residual | 60.76% | 75.28% | 84.66% | 91.71% |
+| entry-shuffled residual | 5.90% | 11.37% | 21.51% | 39.26% |
+| random-pair residual | 14.66% | 20.73% | 30.16% | 46.27% |
+| raw target | 19.61% | 27.02% | 36.31% | 51.27% |
+| raw pretrained output | 10.45% | 15.68% | 25.38% | 42.31% |
+
+在冻结的 `rho=1/8, r=8`，Long real residual median/p10 为 84.66%/81.99%，相对
+entry-shuffled median 高 63.15 pp。10 个 task 的 median 为 82.37%--85.41%，最低 task
+p10 为 81.23%；early/middle/late median 为 84.25%/84.41%/85.50%，最低 phase p10
+为 81.76%。因此 Long overall、所有 task 和三个 normalized phases 全部通过。
+
+Long 的 train-only global PCA 在 rank 2/4/8/16 解释 train 总 centered variance 的
+29.07%/37.30%/47.93%/58.85%；held-out validation/test centered projection median
+在 rank 8 为 41.64%/40.77%，rank 16 为 49.76%/49.84%。45 个 Long task-basis pair
+的 mean squared-cosine overlap median 仅 0.0625，mean principal angle median 为
+78.74 度。它比 Object 的共享 basis 证据更弱，进一步否定“统一全局机器人子空间”的
+表述，但不否定逐输入低秩。
+
+冻结的 Object+Long cross-suite artifact 为 `cross_suite_decision.json`，判定
+`pass_input_conditional_low_rank`：Object formal420 在 rank 8 的 median/p10 为
+83.26%/81.55%，Long formal300 为 84.66%/81.99%；两者所有 task 和 normalized phase
+均通过同一门槛。因此 G1-primary 正式通过，但 Claim 1 必须限定为
+**input-conditional/task-specific low rank**，不得声称存在一个强共享全局 basis。
+
+本次共执行 373 次 Wan 与 373 次 VAE forward，用时 133.06 秒，CUDA allocated peak
+为 3.619 GiB；没有 optimizer、backward、robot checkpoint、G2、Action-DiT 训练或闭环
+评测，也没有保存 residual/basis tensor。natural-video control 与经过验证的
+contact/non-contact labels 仍不可用。
+
+### 14.6 后续最小步骤
 
 当前仍不应直接实现完整 LRD-WAM。下一步是：
 
-1. 不启动 G2、Action-DiT 训练或闭环评测；Object 正式结果本身不能触发这些阶段；
-2. 若另行授权 matched Long，则先冻结 Long 的数据可用数、task balance 与同合同 D2
-   selection，再在 Object 与 Long 的同合同 D2 窗口上提取
-   \(Y_{\mathrm{pre}},Y^*,R_{\mathrm{pre}}^*\)，只以 G1-primary 决定 Go/No-Go；
-3. 只在 Object 与 Long 都通过冻结的 cross-suite G1 gate 后，才为 G2-A/G2-B 与 three
-   bypass interventions 编写新的执行合同；
-4. 只有 G2 通过，才用一个冻结 rank 申请 G3-stage 1 的单 seed Object screening；
-5. stage 1 淘汰后才为 LR-M1/M2/M5 申请 3-seed、500-episode confirmation 预算；
-6. LR-M4/M6 只在 LR-M5 通过后作为机制补充。
+1. G1 已通过，但本次不自动启动 G2；下一步只能是另行冻结 G2-A/G2-B、D1 control 与
+   three bypass interventions 的数据、模型、预算和判定合同；
+2. 只有 G2 通过，才用一个冻结 rank 申请 G3-stage 1 的单 seed Object screening；
+3. stage 1 淘汰后才为 LR-M1/M2/M5 申请 3-seed、500-episode confirmation 预算；
+4. LR-M4/M6 只在 LR-M5 通过后作为机制补充。
 
 这条顺序把最便宜的证伪实验放在前面，并把核心主张固定为：
 
