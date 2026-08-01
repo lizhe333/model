@@ -798,3 +798,34 @@ contact/non-contact labels 仍不可用。
 \]
 
 而不是“给 Model3 再加一个 LoRA 或 action head”。
+
+### 14.7 2026-08-01 G2 正式授权与冻结合同
+
+用户已明确授权：先冻结并批准 G2-A/G2-B、D1/D2、四个主对照和三种干预的正式
+合同，然后实现 G2；验收标准是得出 G2 是否通过。本授权替代 14.6 节中“G2 尚未
+授权”的状态描述，但不改变 G1 结果、科学门槛或后续顺序。
+
+机器可执行合同位于外层实验仓库
+`specs/13-lrd-wam-g2-deployable-delta-code.md` 与
+`analysis/lrd_wam/configs/g2_object_long.json`。其关键冻结项为：
+
+- 复用 Object formal420 与 Long formal300 的 episode-heldout split，每个 episode 取
+  归一化位置 `0.10/0.35/0.65/0.90` 的四个 H8 窗口；
+- D2 是 `[0,1000]` one-slot 主路径，D1 是 `[0]` current-only matched control；两者预测
+  同一个 D2 endpoint residual target；
+- 四个主对照固定为 LR-P0 frozen base、LR-P2 predicted full-rank residual、LR-P3
+  predicted rank-constrained residual、LR-P5 parameter-matched side adapter；LR-P1 oracle
+  只作不可部署上限；
+- 主 rank 冻结为 G1 选出的 `r=8`，`2/4/16` 只验证 G2-A 饱和曲线，不允许用测试结果
+  重新选 rank；
+- 三种必须干预为 zero-delta、episode-shuffled delta、detached-independent feature，
+  均不重新训练 LR-P3 decoder；
+- G2-A 运行相同 linear/2-layer MLP action probe，G2-B 运行相同初始化的 16-layer
+  Action-DiT；三训练 seeds 为 `4201/4202/4203`；
+- 统计使用 task-stratified episode bootstrap；LR-P3 必须稳定优于 P0/P5、不劣于 P2，
+  D2 不劣于 D1，rank-8 对 rank-16 饱和，且三种干预都造成一致性能下降；
+- 最多使用 GPU 0--3、16 accelerator-hours；正式输出止于 `g2_decision.json` 的
+  pass/fail，不启动 G3、闭环 rollout 或机器人 checkpoint。
+
+本阶段允许训练 delta/side predictor、linear/MLP probe 与 matched Action-DiT，但原始 Wan、
+Wan head 和 VAE 必须冻结，真实 future 与 expert action 不得进入 delta adapter 输入。

@@ -97,6 +97,24 @@ batch size，`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行
 | `M5-Object` | LR `2e-4`，150K 预算；训练在完整 20K checkpoint 后暂停；S5 和 S10 均完成 3-checkpoint × 500 episodes |
 | `M5-Long` | LR `1e-4`，150K 预算；fresh Wan-base initialization；训练进行中 |
 
+### LRD-WAM：G1 通过，G2 未通过
+
+LRD-WAM G0/G1 仅使用原始 pretrained Wan2.1-T2V-1.3B。Object 420 episodes
+与 Long 300 episodes 的逐样本 rank-8 residual explained energy 均通过冻结门槛，
+因此 G1 判定为 `pass_input_conditional_low_rank`；这只支持输入条件/任务条件低秩，
+不支持统一全局机器人子空间。
+
+随后冻结并执行的 Object+Long G2 覆盖 3 个 seed、18 个 dynamics、54 个 G2-A
+probe 和 15 个 16-layer Action-DiT。G2-A 的 LR-P3 rank-8 在 Object 与 Long
+都没有优于 frozen-base P0。G2-B 在 Long 上相对 P0 的 pooled 改善为 8.26%
+（95% CI 6.23%–10.29%），相对 P5 为 6.39%（3.55%–9.30%）；但 Object
+只有 0.74% 与 0.51%，区间均跨 0，也未达到预注册的 5% 门槛。Long D2 未通过
+D1 非劣检验，Object 的 shuffled-delta 干预退化也未达到 2%。最终判定为
+`fail_stop_before_g3`：保留 G1 表示层结论，拒绝“可部署且动作充分的 delta code”
+主张，不启动 G3 或闭环评测。
+
+完整中文报告：[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)。
+
 ## 证据边界
 
 - Light-WAM 论文官方值是论文报告值，不是我们的本地复现。
@@ -108,4 +126,5 @@ batch size，`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行
 - 不跨不同 checkpoint、solver 或训练路径直接宣称结构性优越；表格只陈述观测结果。
 
 详细结果页：[`model3_o2/Spatial.md`](model3_o2/Spatial.md)、
-[`model3_o2/Long.md`](model3_o2/Long.md)、[`model5/Object.md`](model5/Object.md)。
+[`model3_o2/Long.md`](model3_o2/Long.md)、[`model5/Object.md`](model5/Object.md)、
+[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)。

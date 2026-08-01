@@ -14,8 +14,10 @@
   certification 仍等待 paired CI，但不阻塞 Matrix D。
 - 历史 Model3/Regression/O2 数字是 evidence anchors，不能替代新的 matched controls。
 - [Low-Rank Delta Dynamics WAM](low-rank-delta-dynamics-wam-experiment.md) 是独立候选
-  方法分支。当前授权范围仅为实验文档与 G0/G1 只读诊断设计；G2 之后的新训练不属于
-  本合同已批准的 D/L/C/B scope，必须另行冻结 carrier、预算与 treatment。
+  方法分支。G0/G1 已完成；用户于 2026-08-01 单独授权冻结并执行 G2-A/G2-B，正式
+  server carrier、预算、D1/D2、四个主对照、三种干预和 Go/No-Go 规则冻结在外层仓库
+  `specs/13-lrd-wam-g2-deployable-delta-code.md`。该授权止于得出 G2 pass/fail，仍不属于
+  D/L/C/B scope，也不自动授权 G3 或闭环训练。
 
 ## 1. G0: Fixed O2 Carrier
 
