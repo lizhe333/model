@@ -10,6 +10,15 @@
 > 新候选方法分支“显式低秩机器人视频动力学增量 + 共享 delta action code”见
 > [low-rank-delta-dynamics-wam-experiment.md](low-rank-delta-dynamics-wam-experiment.md)。
 > 该分支当前只完成实验设计，不替换已批准的 D/L/C/B 顺序，也不自动启动新训练。
+>
+> LRD-WAM Gate 结果之后形成的后续候选“训练期未来引导的稀疏 WM 适配”见
+> [future-guided-sparse-wm-adaptation.md](future-guided-sparse-wm-adaptation.md)。该文档记录
+> Model5-carrier 架构与证伪边界，同样不自动替换或启动当前 O2 主线。
+>
+> 新候选方法“同状态多动作的动作响应过程监督 + 局部 Video-DiT 适配”见
+> [action-response-process-local-adaptation.md](action-response-process-local-adaptation.md)。该方案明确区分
+> 部署时保留的当前状态适配模块与仅训练期存在的动作查询头，并将 O2 仅作为架构合同和性能上限；
+> 它不替换已批准的 D/L/C/B 顺序，也不自动授权新训练。
 
 ## 1. Problem and Scope
 
