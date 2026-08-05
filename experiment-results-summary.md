@@ -1,11 +1,13 @@
 # 实验结果总览
 
-更新时间：2026-08-01。
+更新时间：2026-08-03。
 
-本文只汇总 Light-WAM、Model3、Model3 O2 和 Model5。除“论文官方”一栏外，
-LIBERO 结果均为本地评测：10 tasks × 50 trials，共 500 episodes。`B` 为单卡
-batch size，`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行后重规划
-步数，`S` 为 Action-DiT solver steps。
+本文汇总 Light-WAM、Model3、Model3 O2、Model5，以及已完成的 LRD-WAM
+诊断链。除“论文官方”一栏外，主表中的 closed-loop LIBERO 结果均为本地评测：
+$10$ tasks $\times$ $50$ trials，共 $500$ episodes。LRD-WAM 小节遵循独立的冻结
+offline diagnostic 合同，不与 closed-loop 成功率混合。`B` 为单卡 batch size，
+`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行后重规划步数，`S` 为
+Action-DiT solver steps。
 
 ## 一页结果
 
@@ -87,8 +89,8 @@ batch size，`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行
 ### `M5-*`：Model5
 
 - 同 Model3 query + Action-DiT 主体；action-feature branch 改为
-  `[current clean latent, one Gaussian noisy future latent]`，显式 temporal
-  timesteps `[0,1000]`；queries 读取 layers 8/16/24 的完整时序 tokens。
+  $[\text{current clean latent},\ \text{one Gaussian noisy future latent}]$，显式 temporal
+  timesteps $[0, 1000]$；queries 读取 layers 8/16/24 的完整时序 tokens。
 - B8/GA2，global batch 64，BF16，关闭 gradient checkpointing，4×RTX 4090，
   `H8/R8`。
 
@@ -97,23 +99,42 @@ batch size，`GA` 为 gradient accumulation，`H/R` 为动作输出长度/执行
 | `M5-Object` | LR `2e-4`，150K 预算；训练在完整 20K checkpoint 后暂停；S5 和 S10 均完成 3-checkpoint × 500 episodes |
 | `M5-Long` | LR `1e-4`，150K 预算；fresh Wan-base initialization；训练进行中 |
 
-### LRD-WAM：G1 通过，G2 未通过
+### LRD-WAM：保留 G1 结构发现，原 future-field 主张尚未成立
 
-LRD-WAM G0/G1 仅使用原始 pretrained Wan2.1-T2V-1.3B。Object 420 episodes
-与 Long 300 episodes 的逐样本 rank-8 residual explained energy 均通过冻结门槛，
+LRD-WAM G0/G1 仅使用原始 pretrained Wan2.1-T2V-1.3B。Object $420$ episodes
+与 Long $300$ episodes 的逐样本 rank-$8$ residual explained energy 均通过冻结门槛，
 因此 G1 判定为 `pass_input_conditional_low_rank`；这只支持输入条件/任务条件低秩，
 不支持统一全局机器人子空间。
 
-随后冻结并执行的 Object+Long G2 覆盖 3 个 seed、18 个 dynamics、54 个 G2-A
-probe 和 15 个 16-layer Action-DiT。G2-A 的 LR-P3 rank-8 在 Object 与 Long
-都没有优于 frozen-base P0。G2-B 在 Long 上相对 P0 的 pooled 改善为 8.26%
-（95% CI 6.23%–10.29%），相对 P5 为 6.39%（3.55%–9.30%）；但 Object
-只有 0.74% 与 0.51%，区间均跨 0，也未达到预注册的 5% 门槛。Long D2 未通过
-D1 非劣检验，Object 的 shuffled-delta 干预退化也未达到 2%。最终判定为
+随后冻结并执行的 Object+Long G2 覆盖 $3$ 个 seed、$18$ 个 dynamics、$54$ 个
+G2-A probe 和 $15$ 个 16-layer Action-DiT。G2-A 的 LR-P3 rank-$8$ 在 Object
+与 Long 都没有优于 frozen-base P0。G2-B 在 Long 上相对 P0 的 pooled 改善为
+$8.26\%$（$95\%$ CI $[6.23\%,10.29\%]$），相对 P5 为 $6.39\%$
+（$[3.55\%,9.30\%]$）；但 Object 只有 $0.74\%$ 与 $0.51\%$，区间均跨
+$0$，也未达到预注册的 $5\%$ 门槛。Long D2 未通过 D1 非劣检验，Object 的
+shuffled-delta 干预退化也未达到 $2\%$。最终判定为
 `fail_stop_before_g3`：保留 G1 表示层结论，拒绝“可部署且动作充分的 delta code”
-主张，不启动 G3 或闭环评测。
+主张，不启动原 G3 或 D2/noisy-future 闭环评测。
 
-完整中文报告：[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)。
+后续 G2-R2 证明 Object oracle endpoint residual 有价值，但 predicted rank-$8$
+相对 P0 的 pooled 改善仅为 $5.09\%$，且相对 matched P5 的 CI
+$[-0.97\%,8.22\%]$ 跨 $0$。最终 D1 专属矩阵中，D1/P3 相对 P0 的三 seed
+改善为 $15.31\%/8.74\%/11.96\%$，pooled $12.03\%$，paired $95\%$ CI
+$[5.75\%,17.75\%]$；相对 shuffled D1/P3 为
+$8.22\%/7.56\%/6.87\%$，pooled $7.55\%$，CI $[3.04\%,11.93\%]$。
+但相对严格参数匹配 D1/P5 的三 seed 为
+$-2.11\%/-6.81\%/+15.07\%$，pooled 仅 $+2.95\%$，CI
+$[-2.09\%,7.71\%]$。因此终态为 `d1_gain_not_residual_specific`。
+
+正式结论：output-space endpoint rank-$8$ residual 尚未被证明为 residual-specific
+核心部署机制或方法创新；G1 只保留为结构诊断，原路线不再授权 predictor、rank、
+fusion、G3 或 D2/noisy-future 闭环补救实验。该离线证据也不足以证明所有相关闭环
+构造必然无价值，因此另行冻结了 D1/current-only auxiliary representation 的小型
+Action-DiT 闭环；它不复活原版 future-field LRD-WAM。
+
+完整中文报告：[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)、
+[`lrd-wam-g2r2-gated-residual-complementarity-result.md`](lrd-wam-g2r2-gated-residual-complementarity-result.md)、
+[`lrd-wam-g2r2-d1-carrier-result.md`](lrd-wam-g2r2-d1-carrier-result.md)。
 
 ## 证据边界
 
@@ -127,4 +148,5 @@ D1 非劣检验，Object 的 shuffled-delta 干预退化也未达到 2%。最终
 
 详细结果页：[`model3_o2/Spatial.md`](model3_o2/Spatial.md)、
 [`model3_o2/Long.md`](model3_o2/Long.md)、[`model5/Object.md`](model5/Object.md)、
-[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)。
+[`lrd-wam-g2-object-long-result.md`](lrd-wam-g2-object-long-result.md)、
+[`lrd-wam-g2r2-d1-carrier-result.md`](lrd-wam-g2r2-d1-carrier-result.md)。

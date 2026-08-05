@@ -8,8 +8,13 @@
 D1/P5 容量对照，因此不能把收益归因于低秩 residual。**
 
 冻结决策为 `d1_gain_not_residual_specific`。父 G2 的
-`fail_stop_before_g3` 与当前 endpoint-residual deployment route 的关闭结论保持
-不变。
+`fail_stop_before_g3` 保持不变。结合本矩阵，原版 future-field/output-space
+rank-$8$ residual 主张尚未成立，不能作为已验证的核心部署机制或方法创新。
+
+2026-08-03 的判断修订同时指出：本矩阵尚不足以证明 D1/current-only、逐样本辅助
+信息在闭环中一定没有价值。因此可以单独做一个 current-only Wan features 到 D1
+predicted auxiliary representation 到 Action-DiT 的小型闭环；它不使用 noisy future
+slot，也不构成原版 future-field LRD-WAM 的完整复活。
 
 ## 实验边界
 
@@ -77,15 +82,20 @@ residual specificity：D1/P3 对 D1/P5 的三个 seed 方向不一致，其中�
 不能说明低秩 residual factorization 是获得该信息的必要机制。D1/P3 的强 base gain
 可以被普通、严格参数匹配的 D1 side capacity 解释。
 
-这项结果关闭“仅凭 D1/P3 即可救活当前低秩 residual route”的解释。它不否定未来
-独立提出新的 action-aligned predictor 假设，但任何继续都需要新的冻结合同与新的
-held-out 边界；本轮不授权直接进入 G3 或 closed loop。
+这项结果否定“仅凭 D1/P3 即可救活当前低秩 residual route”的解释，也结束原 D2
+future-field 路线作为方法主线的后续授权。不再从本结果启动 action-aligned predictor
+扩容、rank/fusion sweep 或原 G3。单独冻结的 D1/current-only 小型闭环只验证辅助信息
+是否能转化为闭环收益，并使用新的证据边界；它不能继承 LRD-WAM 的核心表示或方法
+创新主张。
 
 ## 本地可复核产物
 
 完整机器可读证据位于：
 
-`runs/I-003/model5/20260802_lrd_wam_g2r2_d1_carrier_matrix/`
+`runs/I-003/ldr_wam/20260802_lrd_wam_g2r2_d1_carrier_matrix/`
+
+该目录在终端验证后从执行时的 `runs/I-003/model5/` 位置迁入当前封存根；artifact
+内部旧绝对路径保留为不可变执行溯源。
 
 主要文件为 `d1_protocol_contract.json`、`reuse_identity.json`、
 `d1_metrics.json`、`d1_decision.json`、`d1_run_report.md`、

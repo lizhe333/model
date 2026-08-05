@@ -3,7 +3,7 @@
 ## 候选方法方案
 
 > 记录日期：2026-08-03  
-> 当前状态：**用户要求落盘的候选方法；尚未替换已批准的 Model3 O2 主线，也未授权新训练。**  
+> 当前状态：**Gate 0 v1 的合同性 No-Go 保留；Gate 0B 已终态验证动作响应条件期望可学习；successor 合同 `specs/21-model3-o2-dynamic-response-prewarm.md` 已冻结，但实现、训练和闭环均未开始。**  
 > 研究核心：在受限训练和部署预算下，把预训练 Video-DiT 低成本适配成高性能 WAM。动作响应监督和局部训练是实现手段，不以最少参数或新 readout 为主贡献。
 
 ## 0. 一句话方法
@@ -342,18 +342,93 @@ Model3 O2 -> Matrix D -> Matrix L -> Matrix C -> Matrix B
           -> minimal A/R sanity checks
 ```
 
-本文档是一条新的候选方法分支，不自动替换该顺序。当前 D/L/C/B 可以提供：
+本文档是一条独立的候选方法分支，不自动替换该顺序。当前 D/L/C/B 可以提供：
 
 - 是否保留 noisy future slots；
 - 第 8/16/24 层中哪些深度值得读取；
 - 固定接口后 selected-layer adaptation 的性能边界。
 
-动作响应过程方法正式激活前，必须单独冻结：共同 Wan 起点、动作头初始化、分支数据合同、teacher target、四阶段压缩、T0-T3/G0-G2 预算和总成本口径。未经用户再次批准，不启动新训练或服务器 handoff。
+本分支已经为 Gate 0 v1 和 Gate 0B 分别冻结合同。Gate 0 v1 失败后按原合同在 Stage 1 前停止；Gate 0B 没有事后改变 v1 数值或门槛，而是用多噪声动作差分与 held-out 条件预测重新检验“低 raw ratio 是否等于不可学习”。Gate 0B 通过只允许另行冻结局部 adapter Stage 1，不能直接进入完整集成。
 
-## 13. 最小下一步
+## 13. 已执行的最小路径
 
-1. 只读审计 LIBERO/robosuite 是否能保存和恢复完整 simulator state；
-2. 用少量 Object 状态验证专家、扰动和零动作分支能否稳定复现；
-3. 缓存第 8/16/24 层四阶段特征，比较动作差分与 teacher/noise 重复误差；
-4. 运行 `Q(a)` 与状态错配诊断，确认信号不是动作分布 shortcut；
-5. 只有 Gate 0 通过后，再为 T0-T3/G0-G2 写独立实验合同并申请训练。
+1. 已审计并验证 LIBERO/robosuite 完整 simulator state 保存与恢复；
+2. 已在四个 Object 任务的 $192$ 个状态上复现专家、局部扰动、夹爪翻转和零动作分支，共 $768$ 条分支；
+3. 已缓存原始 Wan 第 8/16/24 层四阶段特征，并比较动作差分与固定 teacher 的替代噪声差分；
+4. Gate 0 信号门失败，因此按合同停止，没有运行 `Q(a)` 的 Stage 1 学习、测试集读取或完整集成。
+
+## 14. 终态结果（2026-08-03）
+
+运行证据位于
+`runs/I-003/action_response_local/20260803_gate0_stage1_v1/`。状态恢复、
+重复 rollout 和像素复现误差均为 0，且四个任务的晚期目标物体响应比例均为
+$1.0$，说明同状态动作干预链路成立。
+
+但第 8、16、24 层的 pooled action/noise ratio 中位数分别只有 $0.6087$、
+$0.5967$、$0.6351$，对应 bootstrap $95\%$ 区间下界分别为 $0.5267$、
+$0.5319$、$0.5767$。四个任务在三个层上全部未达到预先冻结的
+median $\ge 2.0$、lower CI $>1.0$ 门槛。
+
+唯一合同结论为 `no_go_complete_o2_integration`。它只表示 v1 的冻结授权门没有
+通过；不能据此证明监督不可学习。Stage 1 未执行是 v1 硬门控的预期终态，不是
+缺失实验。后续 Gate 0B 保留该 artifact，并独立检验其科学解释。
+
+## 15. Gate 0B 条件可预测性结果（2026-08-03）
+
+Gate 0B 运行位于
+`runs/I-003/action_response_local/20260803_gate0b_conditional_predictability_v1/`。
+它复用 $192$ 个状态和 $768$ 条分支，对每条未来使用四个拟合噪声和两个封存
+测试噪声；同一状态、阶段和噪声下的所有动作分支严格共享噪声。
+
+审计确认 Gate 0 v1 的四阶段和全局投影与原 Stage 1 目标形状一致，但 v1
+ratio 没有使用 train-split target 标准化，并在差分前全局平均 $14\times28$
+tokens。其 noise denominator 虽然只改变 seed，却测量 expert 绝对特征变化，
+不是 $\Delta$ 本身的跨噪声误差。因此 v1 ratio 不是直接的 learnability test。
+
+Gate 0B 在 $128/32/32$ 个 train/validation/test states 上完成 $144$ 个冻结 Wan
+的小预测器工作项。唯一一次测试使用未见状态与 seed $84005/84006$。原 Stage 1
+标准化全局空间 E0 中，Full 相对 Action-only、State-only、Shuffled 的 pooled
+MSE 改善为 $14.99\%$、$9.40\%$、$14.79\%$，bootstrap $95\%$ 下界分别为
+$12.76\%$、$7.86\%$、$13.11\%$；三个层和三个训练 seed 全部通过。
+
+终态决定为 `proceed_stage1_exact_space`。这证明固定 timestep $250$ 下的 E0
+动作响应条件期望可学习，否定“raw ratio 低所以监督不可学习”的广泛推断。
+E1 局部网格虽然有正向信号，但相对 Action-only 和 State-only 的 pooled 改善
+只有 $2.85\%$ 和 $3.72\%$，未达到 $5\%$ 门槛，因而不支持替换 E0。
+
+Gate 0B 没有训练 adapter、动作头或完整策略。下一步若执行，必须围绕 E0、
+四噪声均值、相同控制和新的未见证据边界冻结独立 Stage 1 合同。
+
+## 16. Successor 合同修订（2026-08-03）
+
+用户已经确认新的 `model3_o2_dynamic` 两阶段合同。它不覆盖本文早期的候选流程，
+而是把 Gate 0B 的授权落实为一个单独注册的 treatment。
+
+原 Model3 O2 已经包含共享 parent 和 gate-stage 两段：先由 Model3 联合训练得到
+Object step $20\text{K}$ query-pretrained parent，再新增 exact-q3 O2
+layer-aware gate 并执行 O2-local 联合训练。Dynamic treatment 在这两段之间插入
+response warmup：
+
+```text
+共享 Model3 Object step-20K parent
+-> 构造并冻结与 Base 相同初始化的 O2 gate
+-> response Stage 1: 只训练 A8/A16/A24 和 Q8/Q16/Q24
+-> 删除 Q
+-> O2 gate-stage Stage 2: 恢复原 video + action 联合训练
+```
+
+Stage 1 使用一个 LIBERO/robosuite simulator、$5{,}000$ 个确定性运动感知 source
+states、每个状态四条分支、共 $20{,}000$ 条 trajectories、约 $1.28$M
+per-camera frames，并固定训练 $5\text{K}$ optimizer steps。source-state selection
+必须覆盖 object motion、robot motion、wrist-camera motion 和 contact transition，
+静态控制样本占比受限，不允许均匀随机采样。
+
+Stage 2 完整保留原 O2 全层 PEFT、query、gate、Action-DiT、future-video loss 和
+action loss。保存完整 O2-local step-$5\text{K}$ checkpoint 后解冻 response
+adapters；其学习率固定为同期其他 PEFT 的 $0.1$，原 optimizer、scheduler、
+dataloader 和 RNG 不得重置。第一轮 Object treatment 匹配 Base 的
+$35\text{K}$ O2-local budget 和 $\{10\text{K},20\text{K},35\text{K}\}$
+评测集合。
+
+唯一完整合同、hard legality checks、tensor/gradient 语义、证据目录和主张边界
+以 `specs/21-model3-o2-dynamic-response-prewarm.md` 为准。

@@ -29,7 +29,7 @@
 | VidMan | Stage 2 可更新或冻结 VDT | video pretrain → action-only | layer-wise action adapter；fixed noisy video latents | 支持 staged hypothesis 与 action-gradient 研究 |
 | Efficient-WAM / AHA-WAM | compressed/asynchronous future use | 各自效率机制 | 面向训练或推理成本优化 | 系统效率参考，不直接回答 temporal/depth attribution |
 | Model3 O2（active carrier） | frozen Wan base + all-layer rank-64 LoRA/adapters | joint future-video/action flow | recurrent layers 8/16/24 + layer-aware `q1/q2/q3` readout；H8/R8、solver 10 | 当前 D/L/C/B 与 A/R sanity 的统一载体 |
-| Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint `L_video + L_action` | recurrent queries over layers 8/16/24；current Wan once + action solver | 历史 upper anchor；新 carrier 上必须重训 |
+| Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint $L_{\mathrm{video}} + L_{\mathrm{action}}$ | recurrent queries over layers 8/16/24；current Wan once + action solver | 历史 upper anchor；新 carrier 上必须重训 |
 
 跨论文共同缺口不是“Video-DiT 能否做 WAM”，而是：在固定强 carrier 后，动作前向是否
 需要 temporal canvas、控制信息在哪些深度可读、这些深度应如何组合，以及是否只适配这些
@@ -80,21 +80,21 @@ in-place PEFT treatments 不是同一组可交换变量。
 | Released Light-WAM Long | 461/500，92.2% | 本地发布权重复测 |
 | Model3 Object flow-10 | 440/500，88.0% | 历史固定配置 |
 | Model3 Object flow-5 | 467/500，93.4% | post-hoc solver diagnostic |
-| Model5 Object step 15K, solver 10 | 466/500，93.2% | one-slot `[0,1000]` temporal treatment；three-checkpoint two-solver sweep，terminally validated |
+| Model5 Object step 15K, solver 10 | 466/500，93.2% | one-slot $[0, 1000]$ temporal treatment；three-checkpoint two-solver sweep，terminally validated |
 | Model5 Object step 15K, solver 5 | 478/500，95.6% | same checkpoint/protocol; terminally validated matched solver result |
 | Model3 Regression Object step 20K | 467/500，93.4% | predeclared checkpoint set 中 best observed |
 | Released Light-WAM Object | 497/500，99.4% | 本地发布权重复测 |
 | Model3 plan-call latency | 232.994 ms | 历史受控测试 |
 | Light-WAM plan-call latency | 70.327 ms | 历史受控测试 |
 
-O2 的 Object 高表现，以及 Long/Spatial 接近 parent 的表现，共同支持其成为 `C*`，但不能
-替代 `C*` 上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，
+O2 的 Object 高表现，以及 Long/Spatial 接近 parent 的表现，共同支持其成为 $C^\ast$，但不能
+替代 $C^\ast$ 上重新训练的 D/L/C/B controls。特别是 flow 与 regression 来自不同训练路径，
 其差异不能归因于 decoder-only treatment。
 
 ### 4.1 Model5 Object Two-Solver Sweep
 
 Model5 Object evaluates one clean current slot plus one policy-owned noisy
-future slot at explicit Wan timesteps `[0,1000]`. The 10K/15K/20K checkpoints
+future slot at explicit Wan timesteps $[0, 1000]$. The 10K/15K/20K checkpoints
 all completed terminal validation for the same 500 Object task/trial identities
 at both action solvers:
 
@@ -125,19 +125,19 @@ O2 Long 10K 与固定 Model3 Long 80K parent 使用相同 500 个 task/trial ide
 | Model3 only | 19 |
 | Both fail | 5 |
 
-观测差为 `Δ = 95.2% - 95.6% = -0.4 pp`，exact two-sided McNemar
-`p=0.8679394004284404`。据此只能说没有检测到显著差异，并且 O2 表现出较强的 Long
-portability；不能说 O2 改进了 Long，也不能说已经通过 `δ=2%` non-inferiority。
+观测差为 $\Delta = 95.2\% - 95.6\% = -0.4\,\mathrm{pp}$，exact two-sided McNemar
+$p = 0.8679394004284404$。据此只能说没有检测到显著差异，并且 O2 表现出较强的 Long
+portability；不能说 O2 改进了 Long，也不能说已经通过 $\delta = 2\%$ non-inferiority。
 
 合同要求按 task 分层、保持相同 initial-state pair 的 bootstrap CI，并以 95% CI 下界
-`> -2 pp` 为通过条件。当前 mirror 未包含逐 task paired outcomes，因此 formal
+$> -2\,\mathrm{pp}$ 为通过条件。当前 mirror 未包含逐 task paired outcomes，因此 formal
 non-inferiority 状态为 **pending**。权威汇总见 [`model3_o2/Long.md`](model3_o2/Long.md)。
 
 ### 4.3 O2 Spatial Historical Comparison
 
 O2 Spatial 的 predeclared 5K/10K checkpoints 分别达到 481/500（96.2%）和
 489/500（97.8%），10K 被选中。固定 Model3 Spatial 60K 历史结果为
-488/500（97.6%），所以观测差仅为 `+0.2 pp`。
+488/500（97.6%），所以观测差仅为 $+0.2\,\mathrm{pp}$。
 
 Model3 结果曾通过 strict finalization，但成功 eval 目录与 episode ledger 后来被删除；当前
 只能登记为 `recorded_not_locally_auditable`。因此无法重建 paired McNemar 或 stratified
@@ -167,7 +167,7 @@ VidMan paper-reported CALVIN ablation：
 
 | Variant | Avg. Len. |
 |---|---:|
-| Stage 2 `L_video + L_action` | 2.70 |
+| Stage 2 $L_{\mathrm{video}} + L_{\mathrm{action}}$ | 2.70 |
 | Stage 2 action-only | 3.42 |
 | Frozen VDT + adapter/head | 2.98 |
 | Action loss 更新 VDT + adapter/head | 3.42 |
@@ -187,6 +187,10 @@ temporal/depth/interface/adaptation path，这组证据只支撑最后的 minima
 - flow/regression 的互补失败集合不足以支持双头 router；
 - Regression 与 flow 来自独立训练路径，不能将差异解释为 decoder-only；
 - I-003 的旧方法新颖性已被 Light-WAM 覆盖，不因本 Proposal 重新激活。
+- output-space endpoint rank-$8$ residual 的 input/task-conditional 结构只作为
+  LRD-WAM 诊断证据保留；G2-R2 与 D1/P5 容量对照说明原 future-field、
+  residual-specific 方法主张尚未成立，但不足以证明 D1/current-only 辅助信息在闭环
+  必然没有价值。任何小型闭环必须使用独立 current-only 合同，且不能继承原方法主张。
 
 ## 7. New-Paper Intake Template
 
@@ -219,7 +223,7 @@ trainable params / GPU hours / memory / latency：
 - 不把旧 Model3 flow 结果当作新 carrier 的 A1；
 - 不用相同 steps 冒充 compute-matched；
 - 不把 checkpoint 当作独立 seed；
-- 不把 McNemar `p>0.05` 或“差异不显著”当作 non-inferiority；
+- 不把 McNemar $p > 0.05$ 或“差异不显著”当作 non-inferiority；
 - 不把一个 B1 候选称为绝对 minimum；
 - 不在 Matrix D 冻结 temporal contract 前运行 L；
 - 不让 Matrix L 同时改变 depth、aggregation、PEFT 与 action head；
@@ -227,6 +231,9 @@ trainable params / GPU hours / memory / latency：
 - 不在 Matrix L/C 冻结前定义 selected-layer B1；
 - 不跳过 PEFT × interface 交互检查；
 - 不让 A/R sanity 抢占 D/L/C/B 的主预算，或未经单独批准恢复完整 A/R grid；
+- 不以新 predictor、rank、fusion、Action-DiT 或 D2/noisy-future 闭环扩展重新激活
+  尚未成立的 output-space endpoint rank-$8$ residual 核心路线；单独冻结的
+  D1/current-only pilot 只验证 auxiliary information 的闭环转化；
 - 不无条件跑满所有 80K/150K 实验；
 - 不用 probe、offline loss 或 gradient cosine 代替闭环成功率；
 - O2 主线虽已获批准，但不在缺少 preflight/复现字段时启动 server run，也不借此扩展合同

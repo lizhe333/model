@@ -11,13 +11,16 @@ G2-R2 已完成，父实验 G2 的结论仍为
 Object 上，oracle future residual 的确含有可补充 base memory 的离线 action
 信息；但现有 predicted residual、full-rank residual、current-only residual 与
 parameter-matched side input 都没有满足部署所需的联合证据。门控读出也没有可靠地
-优于此前的 concat 读出。因此当前 Object endpoint-residual 路线关闭，不启动 G3、
-闭环 rollout、rank sweep 或泛化 fusion 调参。
+优于此前的 concat 读出。因此当前 Object endpoint-residual 主张未成立，不启动原
+G3、D2/noisy-future 闭环、rank sweep 或泛化 fusion 调参。
 
 这不是“residual 没有价值”的结论：它只说明在当前缓存、输入构造、预测器和
 action readout 合同下，oracle 的价值尚未被转化为足够强且 residual-specific 的
-部署输入。若日后另行提出并冻结预测器导向的新假设，应优先考察 D1/current-only
-输入；该建议不构成对当前路线的救活，也不授权复用旧 test。
+部署输入。随后独立冻结的 D1-input residual-branch 矩阵已经完成；它仍保留 D2 P0
+base，只替换补充分支，并进一步表明 D1/P3 不能稳定优于严格参数匹配的 D1/P5
+容量对照。结合该后续结果，output-space endpoint rank-$8$ residual 不能作为已经
+成立的核心部署机制或方法创新。2026-08-03 另行冻结的 D1/current-only 小型闭环只问
+辅助控制信息能否转化为闭环收益，不复活 future-field LRD-WAM。
 
 ## 证据边界与冻结合同
 
@@ -54,7 +57,7 @@ bootstrap 的 $95\%$ CI。
 | G1 gated D2/P3 vs G2/P5 | $+3.77\%$, $[-0.97\%, 8.22\%]$ | 未证明 residual-specific，容量对照未排除 |
 | G3 shuffled G1 vs G1 | $19.82\%$ degradation, $[15.75\%, 23.78\%]$ | G1 内容具有 sample-specific 性，但不足以转为 deployable 结论 |
 | G6 full-rank P2 vs G0 | $-2.58\%$, $[-8.61\%, 3.08\%]$ | full-rank 不 useful |
-| G5 D1/P3 vs G1 | $+6.70\%$, $[1.37\%, 11.81\%]$ | D1 是未来独立预测器研究的较好输入候选，不救活当前路线 |
+| G5 D1/P3 vs G1 | $+6.70\%$, $[1.37\%, 11.81\%]$ | 当时触发独立 D1 审计；该审计随后失败于 matched-capacity specificity 并关闭路线 |
 | G1 gated vs 原 G2-R concat A1 | $+0.39\%$, $[-4.51\%, 5.23\%]$ | 无可靠 fusion 改善 |
 
 G1 相对 G0 有弱的正向信号，但没有达到三 seed 强-Go 门槛，也没有相对 P5 的
@@ -75,16 +78,20 @@ $750/1500/3000$ step 诊断，条件为 G0、G1、G4、G6。它不改变固定 $
 
 ## 后续边界
 
-- 关闭当前 Object endpoint-residual deployment route。
-- 不继续 low-rank-formula 路线，也不继续 generic fusion tuning。
-- 若另行授权新提案，只能是独立冻结、以 predictor 为中心的假设；D1/current-only
-  可作为优先候选，且必须使用新的测试边界。
+- 当前 Object endpoint-residual deployment claim 未成立；D1 后续也已完成并失败于
+  residual-specific capacity control。原 G3 与 D2/noisy-future 路径继续停止。
+- 不继续 low-rank formula、predictor scaling、rank sweep 或 generic fusion tuning，
+  也不把该表示作为核心方法创新包装。
+- 新的 D1/current-only auxiliary closed-loop pilot 是一个真正不同且单独冻结的问题；
+  它不能继承 LRD-WAM 的方法主张、旧 test 或 D2 执行授权。
 - 本结果不替代 fresh held-out generalization、closed-loop 或机器人成功证据。
 
 ## 可复核产物
 
 本地可复核产物目录为
-`runs/I-003/model5/20260802_lrd_wam_g2r2_gated_residual_complementarity_audit/`。
+`runs/I-003/ldr_wam/20260802_lrd_wam_g2r2_gated_residual_complementarity_audit/`。
+该目录在终端验证后从执行时的 `runs/I-003/model5/` 位置迁入当前封存根；artifact
+内部旧绝对路径保留为不可变执行溯源。
 其中 `g2r2_run_report.md`、`g2r2_metrics.json`、`g2r2_decision.json`、
 `g2r2_predictor_quality.json`、`reuse_identity.json`、`commands.txt` 和
 `result_validation.json` 分别记录结果、统计、决策、预测器诊断、来源 SHA、执行命令

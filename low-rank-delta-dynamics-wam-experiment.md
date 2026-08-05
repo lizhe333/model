@@ -2,7 +2,9 @@
 
 ## 实验 Proposal 与执行合同
 
-> 文档状态：**候选方法分支；评审后已冻结主 carrier 与分阶段实验合同，但不自动启动训练。**
+> 文档状态：**历史 future-field LRD-WAM 合同；原主张尚未成立，不再按 D2/noisy-future
+> 路径继续。2026-08-03 的判断修订不改写既有 Gate，只另行允许 D1/current-only
+> auxiliary representation 的小型闭环。**
 >
 > 当前名称：**Low-Rank Delta Dynamics WAM（LRD-WAM）**。
 >
@@ -11,18 +13,23 @@
 > WAM 的 G0/G1 诊断；D2 是本方法的主 carrier，D1 是 current-only matched control。
 > 任何 G2 之后的新训练都需要单独冻结 server carrier 与预算。
 
+> 当前后续边界：不得再测试 `current + noisy future slot -> low-rank residual ->
+> Action-DiT`。唯一新候选是
+> [D1 current-only auxiliary closed-loop pilot](d1-current-only-auxiliary-closed-loop-experiment.md)，
+> 它验证 current-only、逐样本辅助控制信息能否转化为闭环收益，不构成原方法完整复活。
+
 ## 0. 一句话目标
 
 冻结原始预训练 Wan，不把动作速度错误地写成视频速度的残差，而是在部署一致的
 D2 输入上显式学习一个**低秩的机器人视频动力学增量**，并让动作模型读取这一个增量本身：
-
-\[
-Y_{\mathrm{robot}}
+$$Y_{\mathrm{robot}}
 =
 Y_{\mathrm{pre}}+\Delta Y,
 \qquad
-\operatorname{rank}(\Delta Y)\le r.
-\]
+\operatorname{rank}(\Delta Y)\le r.$$
+
+
+
 
 最终目标不是“参数少且 LIBERO 分数不错”，而是验证一个可证伪的科学命题：
 
@@ -33,92 +40,92 @@ Y_{\mathrm{pre}}+\Delta Y,
 
 ### 1.1 基础 checkpoint 与两个 oracle 残差
 
-主方法的 \(V_{\mathrm{base}}\) 只允许是**原始预训练 Wan**。Model3 O2 不作为 base，
+主方法的 $V_{\mathrm{base}}$ 只允许是**原始预训练 Wan**。Model3 O2 不作为 base，
 只作为强性能 baseline 与次级分析 checkpoint；否则“机器人增量低秩”会被改写成
 “O2 之后剩余误差低秩”，两者不是同一个命题。Action-DiT 初始化在所有 matched 方法间统一。
 
 在完全相同的 latent normalization、D2 input、target、token layout 与 flow
 parameterization 下，冻结 checkpoint 的 pre-unpatchify 输出分别记为
-\(Y_{\mathrm{pre}}\) 与 \(Y_{\mathrm{O2}}\)，真实机器人 target 为 \(Y^*\)。G1 同时计算：
+$Y_{\mathrm{pre}}$ 与 $Y_{\mathrm{O2}}$，真实机器人 target 为 $Y^*$。G1 同时计算：
 
-\[
+$$
 R_{\mathrm{pre}}^*=Y^*-Y_{\mathrm{pre}},
 \qquad
 R_{\mathrm{O2}}^*=Y^*-Y_{\mathrm{O2}}.
-\]
+$$
 
 本文关于“从通用视频先验到机器人动力学的低秩增量”的主 claim 只由
-\(R_{\mathrm{pre}}^*\) 支撑；\(R_{\mathrm{O2}}^*\) 只回答 O2 适配后还剩下什么结构。
+$R_{\mathrm{pre}}^*$ 支撑；$R_{\mathrm{O2}}^*$ 只回答 O2 适配后还剩下什么结构。
 不能拿不同 timestep、target 定义、视频 horizon 或 action endpoint 的输出直接相减。
 
 ### 1.2 严格 rank 所在空间：Wan 最终线性投影之前
 
 先做零训练 shape audit，再冻结 rank 定义。Wan head 的 modulated token 记为：
 
-\[
+$$
 G_0\in\mathbb R^{N\times D},
 \qquad
 W_{\mathrm{head}}\in\mathbb R^{D\times C_p},
 \qquad
 Y_{\mathrm{pre}}=G_0W_{\mathrm{head}}.
-\]
+$$
 
 对 [`model5/third_party/light_wam/src/lightwam/models/wan22/wan_video_dit.py`](model5/third_party/light_wam/src/lightwam/models/wan22/wan_video_dit.py)
 与 Wan2.1 loader preset 的静态审计显示，Object carrier 的原始 YAML 仍保留 5B
-占位维度 `3072 -> 48`，但 `video_backbone_type=wan2_1_t2v` 会在实例化前严格覆盖为
-\(D=1536\)、`out_dim=16`，因此最终线性层输出
-\(C_p=16\times1\times2\times2=64\)。G0 必须在真实 batch 上确认该 runtime preset、\(N\)
-以及动作 endpoint 对应的 token 索引；不得把未生效的 YAML 占位值 `3072 -> 192`
+占位维度 $3072 \rightarrow 48$，但 `video_backbone_type=wan2_1_t2v` 会在实例化前严格覆盖为
+$D=1536$、`out_dim=16`，因此最终线性层输出
+$C_p=16\times1\times2\times2=64$。G0 必须在真实 batch 上确认该 runtime preset、$N$
+以及动作 endpoint 对应的 token 索引；不得把未生效的 YAML 占位值 $3072 \rightarrow 192$
 写入 rank 合同。候选方法不以“LoRA rank 小”间接声称场低秩，而是直接预测
 pre-head token correction：
 
-\[
+$$
 \Delta G_{\phi}=P_{\phi}(h)Q_{\phi}(h)^\top,
 \qquad
 P_{\phi}(h)\in\mathbb R^{N\times r},
 \qquad
 Q_{\phi}(h)\in\mathbb R^{D\times r}.
-\]
+$$
 
 冻结原始 Wan head 后：
 
-\[
+$$
 Y_{\mathrm{robot}}
 =(G_0+\Delta G_{\phi})W_{\mathrm{head}},
 \qquad
 \Delta Y=\Delta G_{\phi}W_{\mathrm{head}},
 \qquad
 \operatorname{rank}(\Delta Y)\le\operatorname{rank}(\Delta G_{\phi})\le r.
-\]
+$$
 
-严格 rank claim 位于 \(N\times C_p\) 的 pre-unpatchify token-output 矩阵。最终
+严格 rank claim 位于 $N\times C_p$ 的 pre-unpatchify token-output 矩阵。最终
 `unpatchify` 会重排张量元素，因此不能把重排后的某个二维 latent view 的数值 rank 也声称为
-必然不超过 \(r\)。初始方法中 \(h\) 来自冻结 Wan 并显式 `stop-gradient`；允许梯度进入 Wan
+必然不超过 $r$。初始方法中 $h$ 来自冻结 Wan 并显式 `stop-gradient`；允许梯度进入 Wan
 的变体必须归入单独 PEFT baseline。
 
 ### 1.3 归一化 rank 注册
 
 shape audit 完成后，以归一化容量而非任意绝对整数注册：
 
-\[
+$$
 \rho\in\left\{\frac1{32},\frac1{16},\frac18,\frac14\right\},
 \qquad
 r(\rho)=\max\left(1,\left\lfloor\rho\min(N,D,C_p)\right\rceil\right).
-\]
+$$
 
-最终整数 \(r\) 必须随审计表一起写入配置；查看测试结果后不得改换 \(\rho\) 或取整规则。
+最终整数 $r$ 必须随审计表一起写入配置；查看测试结果后不得改换 $\rho$ 或取整规则。
 
 ### 1.4 联合 WAM 场，而不是“动作 = 视频 + 残差”
 
 视频 latent 与 robot action 不在同一个空间，所以下式被明确禁止：
 
-\[
+$$
 v_{\mathrm{action}}=v_{\mathrm{video}}+\Delta v.
-\]
+$$
 
 严谨的联合表达是：
 
-\[
+$$
 u_{\mathrm{WAM}}
 =
 \begin{bmatrix}
@@ -130,35 +137,35 @@ Y_{\mathrm{pre}}\\
 \Delta Y_{\phi}\\
 u_a
 \end{bmatrix}.
-\]
+$$
 
-其中，\(\Delta Y_{\phi}\) 是同空间的视频动力学修正；\(u_a\) 是在动作空间中新建的
-action flow。本文研究的是：视频增量能否成为生成 \(u_a\) 的充分条件。
+其中，$\Delta Y_{\phi}$ 是同空间的视频动力学修正；$u_a$ 是在动作空间中新建的
+action flow。本文研究的是：视频增量能否成为生成 $u_a$ 的充分条件。
 
 ### 1.5 动作必须读取同一个 delta，而不是并排另建分支
 
-直接读取 \(P,Q\) 存在 factorization gauge ambiguity：不同 factor basis 可以生成完全
-相同的 \(PQ^\top\)，却给动作头不同的坐标。为避免把任意 factor 编号误当成控制语义，
+直接读取 $P,Q$ 存在 factorization gauge ambiguity：不同 factor basis 可以生成完全
+相同的 $PQ^\top$，却给动作头不同的坐标。为避免把任意 factor 编号误当成控制语义，
 动作接口读取 factorization-invariant 的 delta summary：
 
-\[
+$$
 C_{\Delta}
 =
 A(h)^\top\Delta G
 =
 \left(A(h)^\top P\right)Q^\top
 \in\mathbb R^{M\times D},
-\]
+$$
 
-再投影为与现有 Action-DiT 匹配的 query memory。这里 \(A(h)\) 是只依赖当前 base
-features 的 \(M\) 个 query weights。该计算可以利用低秩乘法完成，不要求物化完整
-\(N\times D\) 矩阵；随后统一投影为现有 Action-DiT 所需的 `[B,64,512]` memory。
+再投影为与现有 Action-DiT 匹配的 query memory。这里 $A(h)$ 是只依赖当前 base
+features 的 $M$ 个 query weights。该计算可以利用低秩乘法完成，不要求物化完整
+$N\times D$ 矩阵；随后统一投影为现有 Action-DiT 所需的 $[B, 64, 512]$ memory。
 
 这个合同保证：
 
-- 视频残差 loss 与动作条件读取的是同一个 \(\Delta G\)；
-- 对保持 \(PQ^\top\) 不变的 factor reparameterization，\(C_\Delta\) 也不变；
-- 不能用一个与 \(\Delta G\) 无关的 action branch 冒充“共享 delta code”。
+- 视频残差 loss 与动作条件读取的是同一个 $\Delta G$；
+- 对保持 $PQ^\top$ 不变的 factor reparameterization，$C_\Delta$ 也不变；
+- 不能用一个与 $\Delta G$ 无关的 action branch 冒充“共享 delta code”。
 
 ### 1.6 从 ScaleResfusion 类比中能搬什么、不能搬什么
 
@@ -185,9 +192,9 @@ features 的 \(M\) 个 query weights。该计算可以利用低秩乘法完成�
 
 | 现有对象 | 在本实验中的唯一角色 | 不能据此声称什么 |
 |---|---|---|
-| 原始预训练 Wan | 唯一 \(V_{\mathrm{base}}\) 与所有方法的共同初始化 | 不能被 O2 checkpoint 替换 |
+| 原始预训练 Wan | 唯一 $V_{\mathrm{base}}$ 与所有方法的共同初始化 | 不能被 O2 checkpoint 替换 |
 | Model3 O2 | matched retraining 的强性能 baseline；另作 G1-secondary 分析 checkpoint | 多层 readout 的强表现不证明从预训练 Wan 出发的机器人增量低秩 |
-| Model5-style D2 | **LRD-WAM 最终方法 carrier**：one policy-owned Gaussian future slot，temporal `[0,1000]` | D2 本身是待检验的方法组成，不是已证明的强 baseline |
+| Model5-style D2 | **LRD-WAM 最终方法 carrier**：one policy-owned Gaussian future slot，temporal $[0, 1000]$ | D2 本身是待检验的方法组成，不是已证明的强 baseline |
 | 已训练 Model5 Object | historical positive pilot；15K 下 solver 10 为 466/500、solver 5 为 478/500 | 单 seed、无 D1 对照、无显式 rank-constrained field，不能充当主方法证据 |
 | D1 current-only | 与 D2 配对的 temporal control | 若 D1 显著优于 D2，不能继续包装 future-field LRD-WAM |
 | parameter-matched LoRA | 相同容量的 PEFT control | 参数空间 LoRA rank 不等于输出场 rank |
@@ -205,8 +212,8 @@ future-field LRD-WAM；只有另行定义、命名并验证 current-only hidden-
 
 支持证据必须同时包含：
 
-- 从原始预训练 Wan 出发的 \(R_{\mathrm{pre}}^*\) 在 pre-unpatchify
-  \(N\times C_p\) 空间中奇异值快速衰减；
+- 从原始预训练 Wan 出发的 $R_{\mathrm{pre}}^*$ 在 pre-unpatchify
+  $N\times C_p$ 空间中奇异值快速衰减；
 - Object 与 Long 在**部署同构的 D2 网格**上存在相近的归一化有效 rank 区间；
 - 不同任务可以使用不同 basis；核心要求是所需 rank 稳定，而不是强行假设一个全局固定
   子空间；
@@ -220,7 +227,7 @@ full rank；entry-permuted、random-pair 或 raw-velocity controls 具有同样�
 ### Claim 2：可部署的 delta code 是控制有效表示
 
 支持证据必须来自只输入 current observation、language 与 **D2 policy-owned Gaussian
-future slot** 的路径，temporal grid 固定为 `[0,1000]`。D1 不增加 future slot，只作为
+future slot** 的路径，temporal grid 固定为 $[0, 1000]$。D1 不增加 future slot，只作为
 current-only control。oracle residual 的 target 由真实未来定义，只能说明 representation
 potential，不能证明在线可用。
 
@@ -262,15 +269,15 @@ G1 失败时停止方法开发，保留为 negative representation result；不�
 
 | 字段 | 必须冻结的内容 |
 |---|---|
-| Base video checkpoint | 原始预训练 Wan checkpoint、commit SHA、precision、VAE 与 latent normalization；这是唯一主 \(V_{\mathrm{base}}\) |
-| Analysis checkpoint | Model3 O2 checkpoint SHA；只作强 baseline 与 \(R_{\mathrm{O2}}^*\) 次级分析，不作主 base |
+| Base video checkpoint | 原始预训练 Wan checkpoint、commit SHA、precision、VAE 与 latent normalization；这是唯一主 $V_{\mathrm{base}}$ |
+| Analysis checkpoint | Model3 O2 checkpoint SHA；只作强 baseline 与 $R_{\mathrm{O2}}^*$ 次级分析，不作主 base |
 | Action decoder | 所有方法统一的 Action-DiT initialization、architecture、H8/R8、solver 与训练配置 |
-| Temporal carrier | D2：one current latent + one policy-owned Gaussian future probe，temporal `[0,1000]`，同空间分辨率；D1 是 current-only control |
+| Temporal carrier | D2：one current latent + one policy-owned Gaussian future probe，temporal $[0, 1000]$，同空间分辨率；D1 是 current-only control |
 | Video target | true future 只定义 H8 chunk 对应 endpoint 的 flow target；冻结 noise convention，不把真实未来送入 Wan；future input noise 与 scheduler target 必须复用同一 tensor |
-| Endpoint mapping | `H8 actions [0,8) -> raw observation frame 8 -> raw offsets [0,2,4,6,8] 的 5-frame VAE clip -> VAE latent slot 1 -> D2 future patch-token indices`；必须验证该 clip 的 current latent 与已有 cache slot 0 一致。现有 33-frame、ratio-4 cache 的 latent slots 1/2 分别止于 raw frame 16/32，不能冒充 H8 target |
+| Endpoint mapping | H8 actions $[0, 8)$ $\rightarrow$ raw observation frame 8 $\rightarrow$ raw offsets $[0, 2, 4, 6, 8]$ 的 5-frame VAE clip $\rightarrow$ VAE latent slot 1 $\rightarrow$ D2 future patch-token indices；必须验证该 clip 的 current latent 与已有 cache slot 0 一致。现有 33-frame、ratio-4 cache 的 latent slots 1/2 分别止于 raw frame 16/32，不能冒充 H8 target |
 | Conditioning | current cameras、language；proprioception 是否使用要统一；明确禁止 expert future action/reward/state |
-| Head/shape audit | 运行时记录 \(N,D,C_p\)、head 输入/输出 shape、展平顺序、unpatchify 前后 shape；冻结的 Wan2.1 Object runtime 预期为 `1536 -> 64`，同时记录被 loader 覆盖的 YAML 占位值 `3072 -> 192` |
-| Rank grid | \(\rho\in\{1/32,1/16,1/8,1/4\}\)，shape audit 后导出并冻结每个整数 \(r\) |
+| Head/shape audit | 运行时记录 $N,D,C_p$、head 输入/输出 shape、展平顺序、unpatchify 前后 shape；冻结的 Wan2.1 Object runtime 预期为 $1536 \rightarrow 64$，同时记录被 loader 覆盖的 YAML 占位值 $3072 \rightarrow 192$ |
+| Rank grid | $\rho\in\{1/32,1/16,1/8,1/4\}$，shape audit 后导出并冻结每个整数 $r$ |
 | Split | episode-heldout train/validation/test；task 与 suite 标识 |
 | Cost | GPU type/count、forward/backward 数、缓存成本、峰值显存与 accelerator-hours |
 | Randomness | video noise、feature noise、action solver 与 rollout seed 分开记录 |
@@ -285,18 +292,18 @@ historical pilot，不进入 LRD-WAM 主结果表。
 ### 6.1 G1-primary：严格复现部署网格
 
 第一轮使用 LIBERO Object 与 Long 的 episode-heldout 演示窗口。每个样本只构造
-`one current latent + one Gaussian future probe`，temporal grid 固定 `[0,1000]`，空间分辨率
+`one current latent + one Gaussian future probe`，temporal grid 固定 $[0, 1000]$，空间分辨率
 与部署相同；目标未来严格对应 H8 action chunk 的 endpoint。真实 future 只生成监督 target，
 不作为 Wan 输入或 action condition。在同一窗口上保存：
 
-\[
+$$
 Y_{\mathrm{pre}},\qquad Y^*,\qquad R_{\mathrm{pre}}^*=Y^*-Y_{\mathrm{pre}}.
-\]
+$$
 
 主分析至少包含：
 
 1. **Per-sample token-output SVD**：每个
-   \(R_{\mathrm{pre}}^*\in\mathbb R^{N\times C_p}\) 的谱；
+   $R_{\mathrm{pre}}^*\in\mathbb R^{N\times C_p}$ 的谱；
 2. **Across-sample subspace SVD/PCA**：检查不同样本是否共享低维 basis，还是需要
    input-conditional basis；
 3. **Cross-task subspace overlap**：用 principal angles 或 projection overlap 判断 basis
@@ -311,26 +318,26 @@ G1-primary 不扫描 sampled timestep，不输入多 future slots，也不使用
 ### 6.2 G1-secondary：机制分析，不决定主 Go/No-Go
 
 只有 G1-primary 完成后，才可选做 full-video、sampled-timestep 或 multi-slot 谱分析，并在
-完全相同合同允许时计算 \(R_{\mathrm{O2}}^*\)。这些结果只回答低秩结构随 timestep、horizon
+完全相同合同允许时计算 $R_{\mathrm{O2}}^*$。这些结果只回答低秩结构随 timestep、horizon
 和已适配 checkpoint 如何变化，不能替代 G1-primary，也不能为其失败“补票”。
 
 主指标为累计解释能量：
 
-\[
+$$
 E(r)
 =
 \frac{\sum_{i=1}^{r}\sigma_i^2}
 {\sum_i\sigma_i^2}.
-\]
+$$
 
 ### 6.3 必要 controls
 
 | Control | 排除的替代解释 |
 |---|---|
-| SVD of \(Y^*\) | 所有 video velocity 天然都低秩，而不是 task delta 特殊 |
-| SVD of \(Y_{\mathrm{pre}}\) | base field 本身的谱结构被误写成 residual 结构 |
-| entry-permuted \(R_{\mathrm{pre}}^*\) | 低秩来自相同边际分布而非时空—通道结构 |
-| randomly paired \(Y^* - Y_{\mathrm{pre}}\) | 任意两个速度场之差都呈现相同谱衰减 |
+| SVD of $Y^*$ | 所有 video velocity 天然都低秩，而不是 task delta 特殊 |
+| SVD of $Y_{\mathrm{pre}}$ | base field 本身的谱结构被误写成 residual 结构 |
+| entry-permuted $R_{\mathrm{pre}}^*$ | 低秩来自相同边际分布而非时空—通道结构 |
+| randomly paired $Y^* - Y_{\mathrm{pre}}$ | 任意两个速度场之差都呈现相同谱衰减 |
 | task/phase-stratified results | 聚合平均掩盖少数困难阶段的高 rank |
 | natural-video residual（若同合同数据可得） | 机器人 residual 是否具有域特异性；没有该数据时明确记为未验证 |
 
@@ -338,17 +345,17 @@ E(r)
 
 进入 G2 需要同时满足：
 
-- 存在一个预注册归一化 rank \(\rho\le1/8\)，在 Object 与 Long 的 G1-primary 上
-  median \(E(r(\rho))\ge0.80\)，且
-  10th-percentile \(E(r(\rho))\ge0.60\)；
-- 相同 rank 下，真实 residual 的 median \(E(r(\rho))\) 至少比 entry-permuted control 高
+- 存在一个预注册归一化 rank $\rho\le1/8$，在 Object 与 Long 的 G1-primary 上
+  median $E(r(\rho))\ge0.80$，且
+  10th-percentile $E(r(\rho))\ge0.60$；
+- 相同 rank 下，真实 residual 的 median $E(r(\rho))$ 至少比 entry-permuted control 高
   10 percentage points；
 - 有效 rank 不只由单个 task、endpoint 或动作阶段支撑；
 - 在 episode-heldout 窗口上仍保持相同 rank 规律。若 across-sample 没有稳定共享 basis，
   必须将 Claim 1 写成 **input-conditional low rank**，并由 G2 的 heldout predictor 检验
   这些条件化 factors 是否可学习，不能声称存在一个全局机器人子空间。
 
-阈值、shape 与 \(\rho\to r\) 映射必须在查看完整测试结果前冻结。G1-secondary 的任何
+阈值、shape 与 $\rho\to r$ 映射必须在查看完整测试结果前冻结。G1-secondary 的任何
 sampled-timestep 或 O2 结果均不参与主 Go/No-Go。
 
 ## 7. G2：Deployable Delta-Code Probe
@@ -358,7 +365,7 @@ sampled-timestep 或 O2 结果均不参与主 Go/No-Go。
 G2 以 D2 policy view 为唯一主路径：
 
 - **D2 policy view（primary）**：只使用 current observation、language 与 one
-  policy-owned Gaussian future slot，temporal `[0,1000]`；
+  policy-owned Gaussian future slot，temporal $[0, 1000]$；
 - **D1 policy view（temporal control）**：current-only，不创建 future slot；
 - **Oracle view（secondary upper bound）**：真实 future 只构造 residual target，不进入主方法
   输入；若用 oracle SVD code 做 probe，必须单独标记为不可部署上限。
@@ -374,18 +381,18 @@ episode-heldout split；同一 episode 的相邻窗口不能跨 train/test。
 | ID | Dynamics representation | Action condition | 研究问题 |
 |---|---|---|---|
 | LR-P0 | frozen base | parameter-matched base-hidden pooling | 原始视频表示是否已经足够 |
-| LR-P1 | oracle truncated SVD residual | invariant \(C_\Delta\) | 低秩 residual 的表示上限 |
+| LR-P1 | oracle truncated SVD residual | invariant $C_\Delta$ | 低秩 residual 的表示上限 |
 | LR-P2 | predicted full-rank residual | invariant residual pooling | residual target 本身是否有用 |
-| LR-P3 | predicted rank-constrained residual | invariant \(C_\Delta\) | 无未来泄漏时低秩 delta 是否可读 |
+| LR-P3 | predicted rank-constrained residual | invariant $C_\Delta$ | 无未来泄漏时低秩 delta 是否可读 |
 | LR-P5 | parameter-matched LoRA/side adapter | matched action head | 收益是否只是相同容量的小 adapter |
 
 LR-P1 不能进入方法主表或闭环主 claim。G2-A 用 LR-P0/P2/P3/P5 选择一个饱和 rank，
 LR-P2 只提供 full-rank upper anchor。对 LR-P3 额外做三个低成本 intervention：
 
-1. **zero-delta**：令 \(C_\Delta=0\)；
-2. **episode-shuffled delta**：在不同 episode 间打乱 \(C_\Delta\)，保持边际尺度；
+1. **zero-delta**：令 $C_\Delta=0$；
+2. **episode-shuffled delta**：在不同 episode 间打乱 $C_\Delta$，保持边际尺度；
 3. **detached-independent feature**：用同参数量、从 base hidden 独立产生且不受
-   \(\mathcal L_\Delta\) 约束的 side feature 替代 \(C_\Delta\)。
+   $\mathcal L_\Delta$ 约束的 side feature 替代 $C_\Delta$。
 
 若三种干预均不显著伤害 probe，动作很可能绕过 delta，不能进入 shared-code claim。
 
@@ -416,9 +423,9 @@ batch、训练样本数与评测 initial states。Model3 O2 必须在该合同�
 | LR-M0 | frozen base | none | matched base hidden | no-dynamics-adaptation lower bound |
 | LR-M1 | all-layer rank-64 LoRA | ordinary adapted field | O2 readout | current strong upper anchor |
 | LR-M2 | parameter-matched LoRA | ordinary adapted field | matched action interface | 参数空间低秩 baseline |
-| LR-M3 | frozen base + full-rank side adapter | full-rank \(\Delta G\) | invariant delta pooling | 显式 residual、无 rank constraint |
-| LR-M4 | frozen base + low-rank delta | rank-\(r\) \(\Delta G\) | independent base-hidden branch | low-rank dynamics、无共享 code |
-| LR-M5 | frozen base + low-rank delta | rank-\(r\) \(\Delta G\) | proposed invariant \(C_\Delta\) | 完整方法 |
+| LR-M3 | frozen base + full-rank side adapter | full-rank $\Delta G$ | invariant delta pooling | 显式 residual、无 rank constraint |
+| LR-M4 | frozen base + low-rank delta | rank-$r$ $\Delta G$ | independent base-hidden branch | low-rank dynamics、无共享 code |
+| LR-M5 | frozen base + low-rank delta | rank-$r$ $\Delta G$ | proposed invariant $C_\Delta$ | 完整方法 |
 | LR-M6 | frozen base | none | action-space residual head | residual 放在 action space 的对照 |
 
 ### 8.1 分阶段淘汰，而不是一次跑满矩阵
@@ -439,21 +446,21 @@ LR-M3 与 LR-M5 回答 output rank constraint；LR-M2 与 LR-M5 回答参数空�
 
 动力学分支：
 
-\[
+$$
 \mathcal L_{\Delta}
 =
 \left\|Y_{\mathrm{pre}}+\Delta G_{\phi}W_{\mathrm{head}}-Y^*\right\|_2^2.
-\]
+$$
 
 动作分支保持与 O2 匹配的 action flow loss：
 
-\[
+$$
 \mathcal L
 =
 \lambda_{\Delta}\mathcal L_{\Delta}
 +
 \lambda_a\mathcal L_{\mathrm{action}}.
-\]
+$$
 
 第一主对比不引入额外 GAN、DMD、distillation teacher 或更大的 action decoder。若
 factor normalization、orthogonality 或 scale-balance regularizer 对优化必需，必须单列
@@ -512,16 +519,15 @@ general WAM adaptation claim。
 
 ```text
 current latent + one policy-owned Gaussian future probe + language
-                    temporal grid [0,1000]
+                    two-slot temporal grid
                               ↓
                     one frozen Wan forward
                               ↓
-              pre-head G0 and frozen head W_head
+              frozen pre-head field and output head
                               ↓
                     low-rank delta adapter
-                       ΔG=P[N,r]Q[D,r]^T
                        ↙                 ↘
- Y_robot=(G0+ΔG)W_head              C_delta=A(h)^TΔG
+ video-flow field                    invariant delta summary
            ↓                               ↓
  endpoint video-flow target             Action-DiT
            ↓                               ↓
@@ -544,13 +550,13 @@ current latent + one policy-owned Gaussian future probe + language
 
 ```text
 current latent + one policy-owned Gaussian future probe + language
-                    temporal grid [0,1000]
+                    two-slot temporal grid
                          ↓
                one frozen Video-DiT forward
                          ↓
-              pre-head G0 + low-rank ΔG
+              pre-head field + low-rank delta
                          ↓
-                   invariant C_delta
+                   invariant delta summary
                          ↓
                 Action-DiT, solver 10
                          ↓
@@ -568,7 +574,7 @@ current-only control，不是 LRD-WAM 主方法。
 
 | 类别 | 指标 |
 |---|---|
-| Representation | G1-primary 上 \(R_{\mathrm{pre}}^*\) 的 \(E(r(\rho))\)、normalized effective rank、cross-task principal angles、residual reconstruction error；O2/sampled-timestep 单列 secondary |
+| Representation | G1-primary 上 $R_{\mathrm{pre}}^*$ 的 $E(r(\rho))$、normalized effective rank、cross-task principal angles、residual reconstruction error；O2/sampled-timestep 单列 secondary |
 | Action | episode-heldout action-flow loss/probe；正式结论使用 closed-loop success |
 | Closed loop | paired success difference、task-stratified 95% CI、discordant outcomes、failure stage |
 | Parameters | frozen base、delta adapter、interface、Action-DiT 分项；同时报告 VDT-side 与 total trainable |
@@ -579,7 +585,7 @@ current-only control，不是 LRD-WAM 主方法。
 ### 11.2 禁止的统计替代
 
 - checkpoint 不能当独立 seed；
-- McNemar `p>0.05` 不能替代 non-inferiority CI；
+- McNemar $p > 0.05$ 不能替代 non-inferiority CI；
 - offline MSE、action probe 或谱能量不能替代闭环；
 - 相同训练 steps 不能称为 compute-matched；
 - 在 test suite 上挑 rank 后不能再把同一结果称为泛化。
@@ -623,8 +629,8 @@ current-only control，不是 LRD-WAM 主方法。
 零训练 Object G0 与预备 G1 已在
 `runs/I-003/model5/20260801_lrd_wam_object_g0_g1/` 完成并通过 retained artifact
 validator。G0 只加载原始 Wan2.1-T2V-1.3B，实测
-`N_future=392, D=1536, C_p=64`、future slice `[392,784)`、rank grid
-`r={2,4,8,16}`；target layout、Wan unpatchify 与 H8 clip current/cache current
+$N_{\mathrm{future}} = 392$, $D = 1536$, $C_p = 64$、future slice $[392, 784)$、rank grid
+$r \in \{2, 4, 8, 16\}$；target layout、Wan unpatchify 与 H8 clip current/cache current
 round trip 的 max error 均为 0。checkpoint structure 为 825/825 compatible，且
 11 个跨 embedding/block/head 的抽样 tensor 在 BF16 load 后逐元素完全一致。
 
@@ -652,7 +658,7 @@ random-pair median 分别为 21.54% 与 27.32%。这些结果表明 Object 正�
   该 episode 有效 H8 start range 的 10%/50%/90% 位置。该标签只表示 normalized episode
   progress，不冒充 contact/non-contact annotation；
 - per-sample SVD、raw target、raw pretrained、entry-permuted、random-pair controls、
-  `rho -> r`、noise 与 shuffle seed 均保持 8/64 preliminary 合同不变；
+  $\rho \rightarrow r$、noise 与 shuffle seed 均保持 8/64 preliminary 合同不变；
 - across-sample PCA 将每个 `392 x 64` residual 按冻结 layout 展平，只在 240 个 train
   episode 上拟合 centered basis，并在 validation/test 上报告 rank 2/4/8/16 projection
   energy；不得用 validation/test 重选 basis 或 rank；
@@ -718,7 +724,7 @@ contact/non-contact phase labels 仍不可用。
   8-sample smoke 和 64-sample integration。只有 G0、smoke、integration 均完成，才执行
   formal300；
 - base、D2、H8 endpoint、future-only slice、noise reuse、target inverse layout、
-  `rho -> r`、per-sample SVD、raw target/pretrained、entry-permuted、random-pair、
+  $\rho \rightarrow r$、per-sample SVD、raw target/pretrained、entry-permuted、random-pair、
   train-only centered PCA 与 rank-8 task-basis overlap 均与 Object 完全同合同。唯一数据差异
   是 suite 与因可用 episode 数导出的样本规模；
 - 原始 pretrained Wan2.1-T2V-1.3B 仍是唯一 base；不得加载正在训练或历史的 Model5 Long、
@@ -737,8 +743,8 @@ contact/non-contact phase labels 仍不可用。
 matched Long G1 已在
 `runs/I-003/model5/20260801_lrd_wam_long_g1_matched300/` 完成；terminal manifest 为
 `complete_stopped_after_matched_long_g1`，独立 validator 为 `pass`。Long G0 只加载原始
-Wan2.1-T2V-1.3B，继续得到 `N_future=392, D=1536, C_p=64`、future slice
-`[392,784)` 与 rank grid `r={2,4,8,16}`；825/825 checkpoint keys compatible，11 个
+Wan2.1-T2V-1.3B，继续得到 $N_{\mathrm{future}} = 392$, $D = 1536$, $C_p = 64$、future slice
+$[392, 784)$ 与 rank grid $r \in \{2, 4, 8, 16\}$；825/825 checkpoint keys compatible，11 个
 抽样 tensor 在 BF16 load 后精确相等，所有 layout/head/noise/cache audit error 均为 0。
 
 8-sample smoke、64-sample integration 与 formal300 按冻结顺序完成。formal300 的
@@ -787,7 +793,7 @@ contact/non-contact labels 仍不可用。
 
 这条顺序把最便宜的证伪实验放在前面，并把核心主张固定为：
 
-\[
+$$
 \boxed{
 \text{Pretrained Wan Dynamics on D2}
 +
@@ -795,7 +801,7 @@ contact/non-contact labels 仍不可用。
 \rightarrow
 \text{Control-Sufficient Delta Code}
 }
-\]
+$$
 
 而不是“给 Model3 再加一个 LoRA 或 action head”。
 
@@ -811,7 +817,7 @@ contact/non-contact labels 仍不可用。
 
 - 复用 Object formal420 与 Long formal300 的 episode-heldout split，每个 episode 取
   归一化位置 `0.10/0.35/0.65/0.90` 的四个 H8 窗口；
-- D2 是 `[0,1000]` one-slot 主路径，D1 是 `[0]` current-only matched control；两者预测
+- D2 是 $[0, 1000]$ one-slot 主路径，D1 是 $[0]$ current-only matched control；两者预测
   同一个 D2 endpoint residual target；
 - 四个主对照固定为 LR-P0 frozen base、LR-P2 predicted full-rank residual、LR-P3
   predicted rank-constrained residual、LR-P5 parameter-matched side adapter；LR-P1 oracle

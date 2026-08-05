@@ -9,8 +9,8 @@
 ## 0. Status and Authority
 
 - 当前状态：**Model3 O2 主线已获用户批准，Matrix D 为第一执行矩阵**。
-- 正式 carrier `C* = model3_o2_layer_aware_query_flow`。
-- G0 的 carrier-selection 已完成；Long 对 parent 的 `δ=2%` non-inferiority
+- 正式 carrier 为 `model3_o2_layer_aware_query_flow`，记为 $C^\ast$。
+- G0 的 carrier-selection 已完成；Long 对 parent 的 $\delta = 2\%$ non-inferiority
   certification 仍等待 paired CI，但不阻塞 Matrix D。
 - 历史 Model3/Regression/O2 数字是 evidence anchors，不能替代新的 matched controls。
 - [Low-Rank Delta Dynamics WAM](low-rank-delta-dynamics-wam-experiment.md) 是独立候选
@@ -57,7 +57,7 @@ SHA 在表中为可读性缩写；执行时必须使用对应结果页和 config
 O2 Object 35K 达到 492/500，O2 Long 10K 达到 476/500，O2 Spatial 10K 达到
 489/500。Long 在相同 500 个 identities 上接近 parent 478/500；Spatial 与历史 parent
 488/500 的 aggregate 差为 +1 success，但 parent ledger 已删除。该证据支持
-`C* = Model3 O2` 与跨 suite portability，不支持 Long 或 Spatial improvement。
+$C^\ast = \text{Model3 O2}$ 与跨 suite portability，不支持 Long 或 Spatial improvement。
 Regression 与历史 Model3 退为 reference tracks。
 
 ## 2. Common Contract and Primary Estimands
@@ -131,24 +131,24 @@ Matrix D 使用 registered O2 layer-aware interface，并作为第一个正式�
 
 Matrix L 输出：
 
-- best tested single depth `l*`；
+- best tested single depth $l^\ast$；
 - 各 depth 相对 L-O2 的 paired success difference；
 - task-level complementarity map；
-- 进入 Matrix C 的冻结 depth set `S_L`。
+- 进入 Matrix C 的冻结 depth set $S_L$。
 
-不能仅因某层 probe 最好就纳入 `S_L`；它必须具有闭环可读性或与 `l*` 存在预声明的
+不能仅因某层 probe 最好就纳入 $S_L$；它必须具有闭环可读性或与 $l^\ast$ 存在预声明的
 task-level complementarity。
 
 ## 5. Matrix C: Selected-Depth Composition
 
-Matrix C 固定 `S_L`，只改变 aggregation/readout。
+Matrix C 固定 $S_L$，只改变 aggregation/readout。
 
 | ID | Depth set | Aggregation/readout | 作用 |
 |---|---|---|---|
-| C0 | `{l*}` | matched single-depth readout | best-single baseline |
-| C1 | `S_L` | parameter-matched simple/shared pooling | 测试无需层身份的组合 |
-| C2 | `S_L` | layer-separable compact composition | 测试层身份收益 |
-| C3 | `S_L` | O2-style gated residual readout | high-capacity aggregation reference |
+| C0 | $\{l^\ast\}$ | matched single-depth readout | best-single baseline |
+| C1 | $S_L$ | parameter-matched simple/shared pooling | 测试无需层身份的组合 |
+| C2 | $S_L$ | layer-separable compact composition | 测试层身份收益 |
+| C3 | $S_L$ | O2-style gated residual readout | high-capacity aggregation reference |
 
 ### 5.1 Controls and Decisions
 
@@ -160,23 +160,23 @@ Matrix C 固定 `S_L`，只改变 aggregation/readout。
 - C2 优于 C1：支持保留 layer identity；
 - C3 不优于 compact C2：复杂 gated residual 不是必要条件。
 
-Matrix C 不允许重新选择 depths；若结果要求改变 `S_L`，返回 Matrix L 并记录一次 protocol
+Matrix C 不允许重新选择 depths；若结果要求改变 $S_L$，返回 Matrix L 并记录一次 protocol
 amendment，不能在同一 C sweep 中 post-hoc 调整。
 
 ## 6. Matrix B: Selected-Layer PEFT
 
-固定 D winner、`S_L` 与 C winner 后，才改变 Video-DiT adaptation scope。
+固定 D winner、$S_L$ 与 C winner 后，才改变 Video-DiT adaptation scope。
 
 | ID | Video-DiT adaptation | 解释 |
 |---|---|---|
 | B0 | Wan base/PEFT 全冻结，只训练 interface/head | no-PEFT control |
-| B1 | 仅适配 `S_L` 对应 blocks | selected-layer candidate |
+| B1 | 仅适配 $S_L$ 对应 blocks | selected-layer candidate |
 | B1.5 | B1 + 一个预声明相邻 block bracket；仅当 B1 失败时启用 | 定位边界 |
 | B2 | O2 all-layer rank-64 PEFT | performance/cost upper anchor |
 
 ### 6.1 Mapping and Decision Rules
 
-- `depth -> adapted block` mapping 在运行 B 前冻结；B1 不得更新未声明 blocks；
+- $\text{depth} \mapsto \text{adapted block}$ mapping 在运行 B 前冻结；B1 不得更新未声明 blocks；
 - B1.5 的邻域方向与 block IDs 预声明，只允许一次；
 - B0 对 B2 non-inferior：称 B0 为 **cheapest tested configuration**；
 - B0 失败而 B1 non-inferior：称 B1 为 **smallest tested selected-layer PEFT**；
@@ -201,7 +201,7 @@ A/R 在 D/L/C/B 冻结后运行，不再承担 discovery priority。
 
 | ID | Objective | PEFT route |
 |---|---|---|
-| A-S0 | registered `L_video + L_action` | final B route |
+| A-S0 | registered $L_{\mathrm{video}} + L_{\mathrm{action}}$ | final B route |
 | A-S1 | action-only | final B route |
 
 - 固定 D/L/C/B、initialization、action updates、batch contract 与 checkpoint rule；
@@ -232,10 +232,10 @@ A/R 在 D/L/C/B 冻结后运行，不再承担 discovery priority。
 
 ### 8.2 Non-Inferiority
 
-- `δ = 2.0` percentage points 已对 O2 Long comparison 冻结，不得 post-hoc 修改；
-- 每个新 compact contrast 在结果前预声明适用 margin；默认沿用 `δ=2 pp` 时必须明确记录；
-- 报告 `Δ = p_candidate - p_reference` 的 95% paired CI；
-- 只有 CI 下界 `> -δ` 才判定 non-inferior；
+- $\delta = 2.0\,\mathrm{pp}$ 已对 O2 Long comparison 冻结，不得 post-hoc 修改；
+- 每个新 compact contrast 在结果前预声明适用 margin；默认沿用 $\delta = 2\,\mathrm{pp}$ 时必须明确记录；
+- 报告 $\Delta = p_{\mathrm{candidate}} - p_{\mathrm{reference}}$ 的 95% paired CI；
+- 只有 CI 下界 $> -\delta$ 才判定 non-inferior；
 - exact McNemar test 可辅助 paired difference/superiority，不替代 non-inferiority。
 
 #### O2 Long vs Parent Record
@@ -244,11 +244,11 @@ A/R 在 D/L/C/B 冻结后运行，不再承担 discovery priority。
 |---|---:|
 | O2 Long 10K | 476/500 (95.2%) |
 | Model3 Long 80K parent | 478/500 (95.6%) |
-| Observed paired difference | `-0.4 pp` |
+| Observed paired difference | $-0.4\,\mathrm{pp}$ |
 | Both succeed / O2 only / parent only / both fail | 459 / 17 / 19 / 5 |
 | Exact two-sided McNemar `p` | `0.8679394004284404` |
 
-当前可以写“未检测到显著差异，且表现出较强 portability”，不能写“已通过 `δ=2%`
+当前可以写“未检测到显著差异，且表现出较强 portability”，不能写“已通过 $\delta = 2\%$
 non-inferiority”。正式判定仍需逐 task paired outcomes 的 stratified bootstrap CI；当前
 source mirror 只有汇总 2×2 表，故状态为 **pending**。
 
@@ -294,12 +294,12 @@ source mirror 只有汇总 2×2 表，故状态为 **pending**。
 ### G2：Matrix L
 
 - 在 D winner 上运行 L8/L16/L24；
-- 输出 `l*`、`S_L` 与 task-level complementarity；
+- 输出 $l^\ast$、$S_L$ 与 task-level complementarity；
 - 没有清晰结果时最多一次 depth bracket，不做全层 sweep。
 
 ### G3：Matrix C
 
-- 固定 `S_L` 后比较 C0/C1/C2/C3；
+- 固定 $S_L$ 后比较 C0/C1/C2/C3；
 - C 中不重新选择 layers。
 
 ### G4：Matrix B

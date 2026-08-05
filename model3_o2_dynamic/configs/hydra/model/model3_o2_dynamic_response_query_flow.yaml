@@ -1,0 +1,46 @@
+defaults:
+  - lightwam
+  - _self_
+
+_target_: model3_o2_dynamic.runtime.create_model3_o2_dynamic_wam
+
+state_fusion_action_expert_config: null
+model3_warmstart_path: ${oc.env:MODEL3_O2_WARMSTART_PATH,""}
+model3_warmstart_sha256: ${oc.env:MODEL3_O2_WARMSTART_SHA256,""}
+model3_warmstart_step: ${oc.env:MODEL3_O2_WARMSTART_STEP,20000}
+response_adapter_export_path: ${oc.env:MODEL3_O2_DYNAMIC_ADAPTER_EXPORT,""}
+response_adapter_export_sha256: ${oc.env:MODEL3_O2_DYNAMIC_ADAPTER_EXPORT_SHA256,""}
+response_adapter_config:
+  layers: [8, 16, 24]
+  hidden_dim: 1536
+  bottleneck_dim: 64
+  activation: gelu
+  zero_init_up_projection: true
+dynamic_response_schedule:
+  freeze_through_step: ${oc.env:DYNAMIC_RESPONSE_ADAPTER_FREEZE_THROUGH_STEP,5000}
+  first_adapter_update_step: ${oc.env:DYNAMIC_RESPONSE_FIRST_ADAPTER_UPDATE_STEP,5001}
+  adapter_lr_scale: ${oc.env:DYNAMIC_RESPONSE_ADAPTER_LR_SCALE,0.1}
+  gate_freeze_through_step: ${oc.env:DYNAMIC_O2_GATE_FREEZE_THROUGH_STEP,0}
+  first_gate_update_step: ${oc.env:DYNAMIC_O2_FIRST_GATE_UPDATE_STEP,1}
+  gate_lr_scale: ${oc.env:DYNAMIC_O2_GATE_LR_SCALE,1.0}
+
+action_query_policy_config:
+  query_dim: 512
+  num_action_queries: 64
+  query_num_heads: 8
+  query_bridge_depth: 2
+  query_ffn_multiplier: 4
+  query_dropout: 0.0
+  feature_source: adapted
+  hidden_dim: 512
+  ffn_dim: 2048
+  num_heads: 8
+  attn_head_dim: 64
+  num_layers: 16
+  freq_dim: 256
+  eps: 1.0e-06
+  action_horizon: 8
+  use_gradient_checkpointing: false
+  readout_type: layer_separable_gated_residual
+  readout_gate_type: querywise_scalar
+  readout_identity_init: true

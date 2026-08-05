@@ -7,9 +7,15 @@
 > 执行约束见 [experiment-contract.md](experiment-contract.md)，文献与历史证据见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
 >
-> 新候选方法分支“显式低秩机器人视频动力学增量 + 共享 delta action code”见
-> [low-rank-delta-dynamics-wam-experiment.md](low-rank-delta-dynamics-wam-experiment.md)。
-> 该分支当前只完成实验设计，不替换已批准的 D/L/C/B 顺序，也不自动启动新训练。
+> LRD-WAM“显式低秩机器人视频动力学增量”的原始 future-field 主张尚未成立。G1 的
+> input/task-conditional rank-$8$ 结构只保留为诊断发现；G2、G2-R2 与 D1 容量对照
+> 不支持把 output-space endpoint residual 作为 residual-specific 的核心部署机制，原
+> D2/noisy-future G3 继续停止。这些离线证据尚不足以判定相关 current-only 表示在闭环
+> 一定没有价值，因此另行冻结了只测试 D1/current-only auxiliary information 的小型闭环，见
+> [d1-current-only-auxiliary-closed-loop-experiment.md](d1-current-only-auxiliary-closed-loop-experiment.md)。历史设计见
+> [low-rank-delta-dynamics-wam-experiment.md](low-rank-delta-dynamics-wam-experiment.md)，
+> 终态结果见
+> [lrd-wam-g2r2-d1-carrier-result.md](lrd-wam-g2r2-d1-carrier-result.md)。
 >
 > LRD-WAM Gate 结果之后形成的后续候选“训练期未来引导的稀疏 WM 适配”见
 > [future-guided-sparse-wm-adaptation.md](future-guided-sparse-wm-adaptation.md)。该文档记录
@@ -90,7 +96,7 @@ action-only，以及 action gradient 是否进入 selected PEFT。如果 sanity 
 O2 保持 parent Model3 的 Wan PEFT、future-video loss、16-layer Action-DiT、flow action
 objective 与 H8/R8 部署合同，只将 recurrent `q1/q2/q3` trace 改为显式 layer-aware
 readout。Long 的 `McNemar p=0.8679394` 表示未检测到与 parent 的显著差异，但不等于已
-通过 `δ=2%` non-inferiority；正式 claim 仍等待 paired CI。Spatial 比历史 parent 多 1 次
+通过 $\delta = 2\%$ non-inferiority；正式 claim 仍等待 paired CI。Spatial 比历史 parent 多 1 次
 成功，但 parent ledger 已删除，所以该差异只能描述为保持 parent-level performance，不能
 写成 superiority。
 
@@ -140,7 +146,7 @@ Matrix C 不再改变读取深度集合。若 C0 已对 multi-depth variants non
 | B2 | O2 all-layer rank-64 PEFT | performance/cost upper anchor |
 
 B1/B1.5 的 block mapping 必须在查看结果前冻结。B0/B1 只有相对 B2 的 paired 95% CI
-下界高于 `-δ` 时才判为 non-inferior，结论只写 cheapest/smallest tested configuration。
+下界高于 $-\delta$ 时才判为 non-inferior，结论只写 cheapest/smallest tested configuration。
 
 ### 3.6 Minimal A/R Sanity Checks
 
@@ -159,7 +165,7 @@ D/L/C/B 结论，否则不恢复原 A0–A3 或 R0–R3 全矩阵。
 2. Primary contrasts 按顺序为 D2 vs D1、L single-depth comparisons、C variants、
    B-selected vs B2；A/R 是 secondary sanity contrasts。
 3. Formal evaluation 为每个 suite 10 tasks × 50 trials，并固定 initial states 与 evaluator。
-4. `δ=2 pp` 的 non-inferiority 必须由 paired 95% CI 判定；McNemar `p>0.05` 不等于
+4. $\delta = 2\,\mathrm{pp}$ 的 non-inferiority 必须由 paired 95% CI 判定；McNemar $p > 0.05$ 不等于
    non-inferiority。
 5. 所有变体同时报告 success、parameters、accelerator-hours、memory、token cost 与
    latency；相同 steps 不视为 compute-matched。

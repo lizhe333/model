@@ -6,7 +6,7 @@
 > [experiment-contract.md](experiment-contract.md)；文献、历史结果与审计边界见
 > [evidence-and-related-work.md](evidence-and-related-work.md)。
 > 本归档正文中的旧 G0 结论已经过时：当前决定以 Model3 O2 为主线载体；Long 的
-> `δ=2%` non-inferiority 仍等待合同规定的 paired CI。
+> $\delta = 2\%$ non-inferiority 仍等待合同规定的 paired CI。
 > 本归档正文中的旧实验顺序也已经过时；当前优先级为
 > **O2 → D → L → C → B → minimal A/R sanity checks**。
 
@@ -168,7 +168,7 @@ parameter-efficient/system-efficiency study；不能用实验数量包装机制 
 不同 action head、checkpoint 或训练路径。若 carrier 改变，旧 Model3 joint 结果不能
 直接充当 A1。
 
-在服务器权威状态核对前，统一用占位符 `C*` 表示最终 carrier。G0 必须记录：
+在服务器权威状态核对前，统一用占位符 $C^\ast$ 表示最终 carrier。G0 必须记录：
 
 | 字段 | 必需内容 |
 |---|---|
@@ -188,7 +188,7 @@ parameter-efficient/system-efficiency study；不能用实验数量包装机制 
    可选 regression carrier；
 3. 若 `model3_o2` 是当前最强候选，必须先返回上述完整证据，不能根据分支名或阶段性
    指标直接选用；
-4. carrier 一旦冻结，A0/A1/A2/A3、R0–R3 和 B0–B2 必须重新在 `C*` 上训练；
+4. carrier 一旦冻结，A0/A1/A2/A3、R0–R3 和 B0–B2 必须重新在 $C^\ast$ 上训练；
 5. 旧 Model3/Regression/Model5 数字只作为 historical anchor。
 
 当前本地结论：**无法确认 `model3_o2` 或 Regression Long 的最新终态，G0 未完成。**
@@ -199,16 +199,16 @@ parameter-efficient/system-efficiency study；不能用实验数量包装机制 
 
 ### 4.1 Matrix A：Supervision schedule
 
-所有变体共享 `C*` 的 pretrained Wan base、action carrier、随机初始化合同、数据和
+所有变体共享 $C^\ast$ 的 pretrained Wan base、action carrier、随机初始化合同、数据和
 评测协议。Stage V checkpoint 是 treatment 本身，因此 A2/A3 进入 Stage A 时不要求
 与 A0/A1 拥有相同 PEFT 权重。
 
 | ID | Stage V | Stage A | 默认 PEFT routing | 作用 |
 |---|---|---|---|---|
 | A0 | 无 | action-only | action → PEFT | 无 robot-video supervision control |
-| A1 | 无独立 warmup | joint `L_video + L_action` | video + action → PEFT | fixed-carrier joint control |
+| A1 | 无独立 warmup | joint $L_{\mathrm{video}} + L_{\mathrm{action}}$ | video + action → PEFT | fixed-carrier joint control |
 | A2 | robot-video warmup | action-only | action → PEFT | dynamics acquisition → control specialization |
-| A3 | robot-video warmup | joint `L_video + L_action` | video + action → PEFT | warmup + persistent joint dynamics |
+| A3 | robot-video warmup | joint $L_{\mathrm{video}} + L_{\mathrm{action}}$ | video + action → PEFT | warmup + persistent joint dynamics |
 
 #### A-Budget：等总成本
 
@@ -226,7 +226,7 @@ parameter-efficient/system-efficiency study；不能用实验数量包装机制 
 
 #### Matrix A 控制要求
 
-- A1 必须是在 `C*` 上新训练的 matched joint control，不得复用旧 flow-Model3 数字；
+- A1 必须是在 $C^\ast$ 上新训练的 matched joint control，不得复用旧 flow-Model3 数字；
 - pilot 只能早停，不能形成论文结论；
 - A0–A3 使用相同 task weighting、action normalization 和 evaluator；
 - 记录每条 loss 对哪些模块有梯度、每步实际 forward/backward 路径与 token 数。
@@ -252,7 +252,7 @@ WM PEFT；R2/R3 在 action-only objective 下只改变 action gradient 是否进
 - R2/R3 的 action-only forward graph、loss scalar、optimizer steps 保持一致；
 - R0/R1 与 R2/R3 之间不是纯 routing contrast，不能用其差值单独解释 gradient effect；
 - R2/R3 不以伪造的 zero video loss 消耗额外 forward；
-- 记录共享 PEFT 上 `grad(L_video)`、`grad(L_action)` 的 norm 与 cosine similarity；
+- 记录共享 PEFT 上 $\operatorname{grad}(L_{\mathrm{video}})$、$\operatorname{grad}(L_{\mathrm{action}})$ 的 norm 与 cosine similarity；
 - gradient statistics 只解释机制，不能替代闭环结果。
 
 ### 4.3 Matrix B：PEFT capacity bracket
@@ -339,7 +339,7 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 ### G0：Carrier freeze
 
 - 完成服务器 repo/checkpoint/evaluator 证据核对；
-- 固定 `C*`、action contract、primary suite、cost unit 与统计 margin；
+- 固定 $C^\ast$、action contract、primary suite、cost unit 与统计 margin；
 - 未完成 G0，不启动 A/R/B。
 
 ### G1：Supervision schedule
@@ -400,11 +400,11 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 
 ### 6.2 Non-inferiority
 
-- 暂定 non-inferiority margin：`δ = 2.0` percentage points；
-- G0 必须在查看新实验结果前冻结或收紧 `δ`，之后不得 post-hoc 修改；
+- 暂定 non-inferiority margin：$\delta = 2.0\,\mathrm{pp}$；
+- G0 必须在查看新实验结果前冻结或收紧 $\delta$，之后不得 post-hoc 修改；
 - 对 paired comparison 报告
-  `Δ = p_candidate - p_reference` 的 95% paired confidence interval；
-- 只有 CI 下界 `> -δ` 才判定 non-inferior；
+  $\Delta = p_{\mathrm{candidate}} - p_{\mathrm{reference}}$ 的 95% paired confidence interval；
+- 只有 CI 下界 $> -\delta$ 才判定 non-inferior；
 - exact McNemar test 用于 paired difference/superiority 的辅助分析，不替代
   non-inferiority。
 
@@ -477,7 +477,7 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 
 1. **完成 G0 状态核对**：从服务器返回最新 `model3` / `model3_regression` /
    `model3_o2` 的 repo SHA、checkpoint、正式评测、action contract 与 latency；
-2. **冻结实验合同**：carrier、primary suite、`δ`、cost unit、checkpoint set、
+2. **冻结实验合同**：carrier、primary suite、$\delta$、cost unit、checkpoint set、
    training-seed policy；
 3. **实现前审计**：为 A0–A3 与 R0–R3 画出 tensor/loss/gradient/optimizer 路径，
    确认每个 treatment 只改变声明的变量；
@@ -502,7 +502,7 @@ Matrix C 分两步执行，避免同时改变 layer bandwidth 与 aggregation。
 | DiT4DiT | joint configuration | video/action experts 联合训练 | Video-DiT hidden condition | noisy future grid + action denoising | future slots 与接口同时变化 |
 | DeVA | Video2World DiT + Action Expert 均训练 | warmup + joint | multi-layer/multi-timestep transfer | joint future/action process | 容量和接口较重 |
 | VidMan | Stage 2 可更新或冻结 VDT | video pretrain → action-only | layer-wise action adapter | fixed noisy video latents，更新 action | 支持 staged hypothesis |
-| Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint `L_video + L_action` | recurrent queries over layers 8/16/24 | current observation Wan once + action solver | 历史 upper anchor；新实验需固定 carrier 重训 |
+| Model3 historical | frozen Wan base + all-layer rank-64 LoRA/adapters | joint $L_{\mathrm{video}} + L_{\mathrm{action}}$ | recurrent queries over layers 8/16/24 | current observation Wan once + action solver | 历史 upper anchor；新实验需固定 carrier 重训 |
 
 ## A.2 EnFold：Scope 与 novelty boundary
 
@@ -553,7 +553,7 @@ predictive target、gradient contract、action representation 与 deployment pat
 | Model3 plan-call latency | 232.994 ms | 历史受控测试 |
 | Light-WAM plan-call latency | 70.327 ms | 历史受控测试 |
 
-这些数字不能替代 `C*` 上重新训练的 A/R/B controls。
+这些数字不能替代 $C^\ast$ 上重新训练的 A/R/B controls。
 
 ## B.2 DeVA 与 VidMan 的张力
 
@@ -573,7 +573,7 @@ VidMan paper-reported CALVIN ablation：
 
 | 变体 | Avg. Len. |
 |---|---:|
-| Stage 2 `L_video + L_action` | 2.70 |
+| Stage 2 $L_{\mathrm{video}} + L_{\mathrm{action}}$ | 2.70 |
 | Stage 2 action-only | 3.42 |
 | Frozen VDT + adapter/head | 2.98 |
 | Action loss 更新 VDT + adapter/head | 3.42 |

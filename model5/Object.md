@@ -6,7 +6,7 @@ This treatment uses the Model5 temporal action-feature path:
 
 ```text
 current observation latent + one policy-owned Gaussian future-noise latent
-temporal timestep matrix [0,1000]
+temporal timestep matrix $[0, 1000]$
   -> one Wan feature forward
   -> layers 8/16/24 -> recurrent 64-query memory -> Action-DiT
 ```
