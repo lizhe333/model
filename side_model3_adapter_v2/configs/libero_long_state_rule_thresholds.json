@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "suite": "libero_10",
+  "close_action_min": 0.5,
+  "open_action_max": -0.5,
+  "grasp_proximity_m": 0.08,
+  "alignment_attempt_max_distance_m": 0.2,
+  "target_static_m": 0.015,
+  "eef_retreat_m": 0.08,
+  "carried_translation_m": 0.04,
+  "co_motion_relative_m": 0.04,
+  "destination_approach_m": 0.12,
+  "disturbance_m": 0.04,
+  "disturbance_persistence_records": 2,
+  "grasp_observation_window_policy_steps": 8,
+  "repeated_attempt_count": 3,
+  "min_recovery_queries": 2,
+  "mechanism_joint_motion": 0.015
+}

@@ -1,0 +1,80 @@
+defaults:
+  - lightwam
+  - _self_
+
+_target_: side_model3_adapter_v2.runtime.create_side_model3_adapter_v2_wam
+
+# This file preserves v1 and enables only the direct WM-to-action auxiliary.
+wam_adapter:
+  use_wam_adapter: true
+  freeze_backbone: true
+  remove_original_action_expert: false
+  adapter_layer_indices: [8, 16, 24]
+  adapter_dim: 256
+  adapter_scale: 1.0
+  use_backbone_lora: false
+state_fusion_action_expert_config: null
+action_dit_pretrained_path: null
+model3_action_dit_warmstart_path: null
+side_model3_adapter_v1_warmstart_path: null
+video_backbone_type: wan2_1_t2v
+video_backbone_name: Wan-AI/Wan2.1-T2V-1.3B
+video_latent_spatial_downsample_factor: 1
+apply_video_latent_downsample_to_action_branch: false
+mot_checkpoint_mixed_attn: false
+
+video_dit_config:
+  use_wam_adapter: true
+  adapter_layer_indices: [8, 16, 24]
+  adapter_dim: 256
+  adapter_scale: 1.0
+  use_backbone_lora: false
+  use_gradient_checkpointing: false
+
+side_encoder_config:
+  layer_indices: [8, 16, 20, 24, 29]
+  num_slots: 64
+  hidden_dim: 512
+  num_heads: 8
+  ffn_dim: 2048
+  residual_gate_init: 0.1
+
+action_policy_config:
+  hidden_dim: 512
+  ffn_dim: 2048
+  num_heads: 8
+  attn_head_dim: 64
+  num_layers: 16
+  freq_dim: 256
+  eps: 1.0e-06
+  action_horizon: 8
+  use_gradient_checkpointing: false
+
+visual_anchor_config:
+  num_anchors: 16
+  num_heads: 8
+  ffn_dim: 2048
+
+transition_config:
+  num_heads: 8
+  ffn_dim: 2048
+  num_blocks: 2
+
+# A 224x448 observation becomes a 28x56 Wan VAE grid; the fixed 2x2 target
+# pooling therefore uses 14x28 output queries.
+latent_change_config:
+  grid_height: 14
+  grid_width: 28
+  num_heads: 8
+  ffn_dim: 2048
+
+ema_decay: 0.996
+
+loss:
+  lambda_video: 0.0
+  future_video_flow_loss: false
+  action: 1.0
+  state_4: 0.25
+  state_8: 0.50
+  latent_4: 0.10
+  latent_8: 0.20

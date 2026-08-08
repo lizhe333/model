@@ -1,0 +1,265 @@
+{
+  "schema_version": 2,
+  "suite": "libero_10",
+  "evaluation_semantics": "The LIBERO checker requires the current-state conjunction of all BDDL goal predicates; BDDL And does not impose temporal order.",
+  "sources": {
+    "task_id_map": "/data/users/lizhe/LIBERO/libero/libero/benchmark/libero_suite_task_map.py",
+    "bddl_root": "/data/users/lizhe/LIBERO/libero/libero/bddl_files/libero_10",
+    "predicate_implementation": "/data/users/lizhe/LIBERO/libero/libero/envs/predicates/base_predicates.py"
+  },
+  "tasks": [
+    {
+      "task_id": 0,
+      "task_name": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "language": "put both the alphabet soup and the tomato sauce in the basket",
+      "bddl_path": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket.bddl",
+      "goal_predicates": [
+        {"id": "alphabet_soup_in_basket", "predicate": "In", "args": ["alphabet_soup_1", "basket_1_contain_region"]},
+        {"id": "tomato_sauce_in_basket", "predicate": "In", "args": ["tomato_sauce_1", "basket_1_contain_region"]}
+      ],
+      "ordering": "unordered_conjunction; either target may be placed first",
+      "distractors": ["cream_cheese_1", "ketchup_1", "milk_1", "orange_juice_1", "butter_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither target is in the basket"},
+        {"id": "alphabet_soup_in_basket_only", "label": "only alphabet soup is in the basket"},
+        {"id": "tomato_sauce_in_basket_only", "label": "only tomato sauce is in the basket"},
+        {"id": "all_goal_predicates", "label": "both targets are in the basket"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["alphabet_soup_in_basket", "tomato_sauce_in_basket"], "progress_rank": 0},
+        {"id": "alphabet_soup_in_basket_only", "required_true": ["alphabet_soup_in_basket"], "required_false": ["tomato_sauce_in_basket"], "progress_rank": 1},
+        {"id": "tomato_sauce_in_basket_only", "required_true": ["tomato_sauce_in_basket"], "required_false": ["alphabet_soup_in_basket"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["alphabet_soup_in_basket", "tomato_sauce_in_basket"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 1,
+      "task_name": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "language": "put both the cream cheese box and the butter in the basket",
+      "bddl_path": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket.bddl",
+      "goal_predicates": [
+        {"id": "cream_cheese_in_basket", "predicate": "In", "args": ["cream_cheese_1", "basket_1_contain_region"]},
+        {"id": "butter_in_basket", "predicate": "In", "args": ["butter_1", "basket_1_contain_region"]}
+      ],
+      "ordering": "unordered_conjunction; either target may be placed first",
+      "distractors": ["alphabet_soup_1", "tomato_sauce_1", "ketchup_1", "milk_1", "orange_juice_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither target is in the basket"},
+        {"id": "cream_cheese_in_basket_only", "label": "only cream cheese is in the basket"},
+        {"id": "butter_in_basket_only", "label": "only butter is in the basket"},
+        {"id": "all_goal_predicates", "label": "both targets are in the basket"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["cream_cheese_in_basket", "butter_in_basket"], "progress_rank": 0},
+        {"id": "cream_cheese_in_basket_only", "required_true": ["cream_cheese_in_basket"], "required_false": ["butter_in_basket"], "progress_rank": 1},
+        {"id": "butter_in_basket_only", "required_true": ["butter_in_basket"], "required_false": ["cream_cheese_in_basket"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["cream_cheese_in_basket", "butter_in_basket"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 2,
+      "task_name": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it",
+      "language": "turn on the stove and put the moka pot on it",
+      "bddl_path": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it.bddl",
+      "goal_predicates": [
+        {"id": "stove_on", "predicate": "Turnon", "args": ["flat_stove_1"]},
+        {"id": "moka_pot_on_stove", "predicate": "On", "args": ["moka_pot_1", "flat_stove_1_cook_region"]}
+      ],
+      "ordering": "formal evaluation is an unordered conjunction; language suggests stove_on before moka_pot_on_stove but reverse completion is not a failure",
+      "distractors": ["chefmate_8_frypan_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither goal predicate is satisfied"},
+        {"id": "stove_on_only", "label": "stove is on but moka pot is not on the cook region"},
+        {"id": "moka_pot_on_stove_only", "label": "moka pot is on the cook region but stove is not on"},
+        {"id": "all_goal_predicates", "label": "stove is on and moka pot is on the cook region"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["stove_on", "moka_pot_on_stove"], "progress_rank": 0},
+        {"id": "stove_on_only", "required_true": ["stove_on"], "required_false": ["moka_pot_on_stove"], "progress_rank": 1},
+        {"id": "moka_pot_on_stove_only", "required_true": ["moka_pot_on_stove"], "required_false": ["stove_on"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["stove_on", "moka_pot_on_stove"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 3,
+      "task_name": "KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it",
+      "language": "put the black bowl in the bottom drawer of the cabinet and close it",
+      "bddl_path": "KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it.bddl",
+      "initial_task_predicates": [
+        {"predicate": "Open", "args": ["white_cabinet_1_bottom_region"]}
+      ],
+      "goal_predicates": [
+        {"id": "bottom_drawer_closed", "predicate": "Close", "args": ["white_cabinet_1_bottom_region"]},
+        {"id": "black_bowl_in_bottom_drawer", "predicate": "In", "args": ["akita_black_bowl_1", "white_cabinet_1_bottom_region"]}
+      ],
+      "ordering": "formal evaluation is an unordered conjunction; physically valid progress is bowl placement before final drawer closure",
+      "physical_prerequisites": [
+        {"required_goal": "black_bowl_in_bottom_drawer", "dependent_goal": "bottom_drawer_closed"}
+      ],
+      "distractors": ["wine_bottle_1", "wine_rack_1"],
+      "stage_states": [
+        {"id": "none", "label": "bowl is not in the bottom drawer and final closure is not achieved"},
+        {"id": "black_bowl_in_drawer_close_pending", "label": "bowl is in the bottom drawer and drawer closure remains"},
+        {"id": "drawer_closed_without_bowl", "label": "drawer is closed without the bowl inside; premature closure"},
+        {"id": "all_goal_predicates", "label": "bowl is in the bottom drawer and drawer is closed"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["bottom_drawer_closed", "black_bowl_in_bottom_drawer"], "progress_rank": 0},
+        {"id": "black_bowl_in_drawer_close_pending", "required_true": ["black_bowl_in_bottom_drawer"], "required_false": ["bottom_drawer_closed"], "progress_rank": 1},
+        {"id": "drawer_closed_without_bowl", "required_true": ["bottom_drawer_closed"], "required_false": ["black_bowl_in_bottom_drawer"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["bottom_drawer_closed", "black_bowl_in_bottom_drawer"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 4,
+      "task_name": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "language": "put the white mug on the left plate and put the yellow and white mug on the right plate",
+      "bddl_path": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate.bddl",
+      "goal_predicates": [
+        {"id": "white_mug_on_left_plate", "predicate": "On", "args": ["porcelain_mug_1", "plate_1"]},
+        {"id": "yellow_white_mug_on_right_plate", "predicate": "On", "args": ["white_yellow_mug_1", "plate_2"]}
+      ],
+      "ordering": "unordered_conjunction; either mug may be placed first",
+      "distractors": ["red_coffee_mug_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither mug is on its assigned plate"},
+        {"id": "white_mug_on_left_plate_only", "label": "only the white mug is on the left plate"},
+        {"id": "yellow_white_mug_on_right_plate_only", "label": "only the yellow-white mug is on the right plate"},
+        {"id": "all_goal_predicates", "label": "both mugs are on their assigned plates"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["white_mug_on_left_plate", "yellow_white_mug_on_right_plate"], "progress_rank": 0},
+        {"id": "white_mug_on_left_plate_only", "required_true": ["white_mug_on_left_plate"], "required_false": ["yellow_white_mug_on_right_plate"], "progress_rank": 1},
+        {"id": "yellow_white_mug_on_right_plate_only", "required_true": ["yellow_white_mug_on_right_plate"], "required_false": ["white_mug_on_left_plate"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["white_mug_on_left_plate", "yellow_white_mug_on_right_plate"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 5,
+      "task_name": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "language": "pick up the book and place it in the back compartment of the caddy",
+      "bddl_path": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy.bddl",
+      "goal_predicates": [
+        {"id": "book_in_back_caddy_compartment", "predicate": "In", "args": ["black_book_1", "desk_caddy_1_back_contain_region"]}
+      ],
+      "ordering": "single terminal predicate; no additional formal stage order",
+      "distractors": ["white_yellow_mug_1"],
+      "stage_states": [
+        {"id": "goal_pending", "label": "book is not in the back caddy compartment"},
+        {"id": "all_goal_predicates", "label": "book is in the back caddy compartment"}
+      ],
+      "stage_requirements": [
+        {"id": "goal_pending", "required_true": [], "required_false": ["book_in_back_caddy_compartment"], "progress_rank": 0},
+        {"id": "all_goal_predicates", "required_true": ["book_in_back_caddy_compartment"], "required_false": [], "progress_rank": 1}
+      ]
+    },
+    {
+      "task_id": 6,
+      "task_name": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "language": "put the white mug on the plate and put the chocolate pudding to the right of the plate",
+      "bddl_path": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate.bddl",
+      "goal_predicates": [
+        {"id": "white_mug_on_plate", "predicate": "On", "args": ["porcelain_mug_1", "plate_1"]},
+        {"id": "chocolate_pudding_right_of_plate", "predicate": "On", "args": ["chocolate_pudding_1", "living_room_table_plate_right_region"]}
+      ],
+      "ordering": "unordered_conjunction; the pudding destination is the table region to the right of the plate, not the plate",
+      "distractors": ["red_coffee_mug_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither goal predicate is satisfied"},
+        {"id": "white_mug_on_plate_only", "label": "only white mug is on the plate"},
+        {"id": "chocolate_pudding_right_of_plate_only", "label": "only chocolate pudding is at the table region right of the plate"},
+        {"id": "all_goal_predicates", "label": "both goal predicates are satisfied"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["white_mug_on_plate", "chocolate_pudding_right_of_plate"], "progress_rank": 0},
+        {"id": "white_mug_on_plate_only", "required_true": ["white_mug_on_plate"], "required_false": ["chocolate_pudding_right_of_plate"], "progress_rank": 1},
+        {"id": "chocolate_pudding_right_of_plate_only", "required_true": ["chocolate_pudding_right_of_plate"], "required_false": ["white_mug_on_plate"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["white_mug_on_plate", "chocolate_pudding_right_of_plate"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 7,
+      "task_name": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "language": "put both the alphabet soup and the cream cheese box in the basket",
+      "bddl_path": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket.bddl",
+      "goal_predicates": [
+        {"id": "alphabet_soup_in_basket", "predicate": "In", "args": ["alphabet_soup_1", "basket_1_contain_region"]},
+        {"id": "cream_cheese_in_basket", "predicate": "In", "args": ["cream_cheese_1", "basket_1_contain_region"]}
+      ],
+      "ordering": "unordered_conjunction; either target may be placed first",
+      "distractors": ["tomato_sauce_1", "ketchup_1"],
+      "stage_states": [
+        {"id": "none", "label": "neither target is in the basket"},
+        {"id": "alphabet_soup_in_basket_only", "label": "only alphabet soup is in the basket"},
+        {"id": "cream_cheese_in_basket_only", "label": "only cream cheese is in the basket"},
+        {"id": "all_goal_predicates", "label": "both targets are in the basket"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["alphabet_soup_in_basket", "cream_cheese_in_basket"], "progress_rank": 0},
+        {"id": "alphabet_soup_in_basket_only", "required_true": ["alphabet_soup_in_basket"], "required_false": ["cream_cheese_in_basket"], "progress_rank": 1},
+        {"id": "cream_cheese_in_basket_only", "required_true": ["cream_cheese_in_basket"], "required_false": ["alphabet_soup_in_basket"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["alphabet_soup_in_basket", "cream_cheese_in_basket"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 8,
+      "task_name": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "language": "put both moka pots on the stove",
+      "bddl_path": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove.bddl",
+      "initial_task_predicates": [
+        {"predicate": "Turnon", "args": ["flat_stove_1"]}
+      ],
+      "goal_predicates": [
+        {"id": "right_initial_moka_pot_on_stove", "predicate": "On", "args": ["moka_pot_1", "flat_stove_1_cook_region"]},
+        {"id": "left_initial_moka_pot_on_stove", "predicate": "On", "args": ["moka_pot_2", "flat_stove_1_cook_region"]},
+        {"id": "stove_on", "predicate": "Turnon", "args": ["flat_stove_1"]}
+      ],
+      "ordering": "moka-pot placement order is unconstrained; stove_on is an initial invariant that must remain true",
+      "distractors": [],
+      "stage_states": [
+        {"id": "no_moka_pot_on_stove", "label": "neither moka pot is on the stove and stove remains on"},
+        {"id": "right_initial_moka_pot_on_stove_only", "label": "only moka_pot_1, initially on the right, is on the stove"},
+        {"id": "left_initial_moka_pot_on_stove_only", "label": "only moka_pot_2, initially on the left, is on the stove"},
+        {"id": "stove_on_lost", "label": "required initial stove-on invariant was lost"},
+        {"id": "all_goal_predicates", "label": "both moka pots are on the stove and stove remains on"}
+      ],
+      "stage_requirements": [
+        {"id": "no_moka_pot_on_stove", "required_true": ["stove_on"], "required_false": ["right_initial_moka_pot_on_stove", "left_initial_moka_pot_on_stove"], "progress_rank": 0},
+        {"id": "right_initial_moka_pot_on_stove_only", "required_true": ["stove_on", "right_initial_moka_pot_on_stove"], "required_false": ["left_initial_moka_pot_on_stove"], "progress_rank": 1},
+        {"id": "left_initial_moka_pot_on_stove_only", "required_true": ["stove_on", "left_initial_moka_pot_on_stove"], "required_false": ["right_initial_moka_pot_on_stove"], "progress_rank": 1},
+        {"id": "stove_on_lost", "required_true": [], "required_false": ["stove_on"], "progress_rank": 0},
+        {"id": "all_goal_predicates", "required_true": ["right_initial_moka_pot_on_stove", "left_initial_moka_pot_on_stove", "stove_on"], "required_false": [], "progress_rank": 2}
+      ]
+    },
+    {
+      "task_id": 9,
+      "task_name": "KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it",
+      "language": "put the yellow and white mug in the microwave and close it",
+      "bddl_path": "KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it.bddl",
+      "initial_task_predicates": [
+        {"predicate": "Open", "args": ["microwave_1"]}
+      ],
+      "goal_predicates": [
+        {"id": "yellow_white_mug_in_microwave", "predicate": "In", "args": ["white_yellow_mug_1", "microwave_1_heating_region"]},
+        {"id": "microwave_closed", "predicate": "Close", "args": ["microwave_1"]}
+      ],
+      "ordering": "formal evaluation is an unordered conjunction; physically valid progress is mug placement before final microwave closure",
+      "physical_prerequisites": [
+        {"required_goal": "yellow_white_mug_in_microwave", "dependent_goal": "microwave_closed"}
+      ],
+      "distractors": ["porcelain_mug_1"],
+      "stage_states": [
+        {"id": "none", "label": "mug is not in the microwave and final closure is not achieved"},
+        {"id": "mug_in_microwave_close_pending", "label": "target mug is in the microwave and closure remains"},
+        {"id": "microwave_closed_without_mug", "label": "microwave is closed without the target mug inside; premature closure"},
+        {"id": "all_goal_predicates", "label": "target mug is in the microwave and microwave is closed"}
+      ],
+      "stage_requirements": [
+        {"id": "none", "required_true": [], "required_false": ["yellow_white_mug_in_microwave", "microwave_closed"], "progress_rank": 0},
+        {"id": "mug_in_microwave_close_pending", "required_true": ["yellow_white_mug_in_microwave"], "required_false": ["microwave_closed"], "progress_rank": 1},
+        {"id": "microwave_closed_without_mug", "required_true": ["microwave_closed"], "required_false": ["yellow_white_mug_in_microwave"], "progress_rank": 1},
+        {"id": "all_goal_predicates", "required_true": ["yellow_white_mug_in_microwave", "microwave_closed"], "required_false": [], "progress_rank": 2}
+      ]
+    }
+  ]
+}
